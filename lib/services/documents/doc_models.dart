@@ -1,14 +1,8 @@
 // lib/services/documents/doc_models.dart
-//
-// Модели данных для генерации документов.
-// Не зависят от Flutter / БД — чистые Dart-классы.
 
-/// Формат генерируемого документа
-enum DocFormat { pdf, docx }
-
-/// Все данные необходимые для генерации трудового договора
+/// Все данные для генерации трудового договора
 class TrudovoyDogovorData {
-  // ── Организация ───────────────────────────────────────────────
+  // Организация
   final String orgNazvanie;
   final String orgKratkoeNazvanie;
   final String orgInn;
@@ -25,7 +19,7 @@ class TrudovoyDogovorData {
   final String orgDirektorFio;
   final String orgBuhgalterFio;
 
-  // ── Сотрудник ─────────────────────────────────────────────────
+  // Сотрудник
   final String sotFamiliya;
   final String sotName;
   final String sotOtchestvo;
@@ -48,13 +42,13 @@ class TrudovoyDogovorData {
   final String sotBankName;
   final String sotDatePriema;
 
-  // ── Должность ─────────────────────────────────────────────────
+  // Должность
   final String dolzhnostNazvanie;
   final String podrazdelenie;
   final double okladMin;
   final double okladMax;
 
-  // ── Условия труда ─────────────────────────────────────────────
+  // Условия труда
   final String uslTrudaNazvanie;
   final String uslKlassUslTruda;
   final String uslGraficRaboty;
@@ -67,8 +61,8 @@ class TrudovoyDogovorData {
   final int uslChasovVechernih;
   final int uslChasovNochnykh;
 
-  // ── Служебные ─────────────────────────────────────────────────
-  final String nomerDogovora; // можно передать или сгенерировать
+  // Служебные
+  final String nomerDogovora; // пустая строка = номер не нужен
   final String dateSostavleniya;
 
   const TrudovoyDogovorData({
@@ -127,21 +121,17 @@ class TrudovoyDogovorData {
     required this.dateSostavleniya,
   });
 
-  // Удобный геттер: ФИО сотрудника полностью
   String get sotFio => '$sotFamiliya $sotName $sotOtchestvo';
 
-  // Удобный геттер: ФИО сотрудника сокращённо (Иванов И.И.)
   String get sotFioShort {
     final n = sotName.isNotEmpty ? '${sotName[0]}.' : '';
     final o = sotOtchestvo.isNotEmpty ? '${sotOtchestvo[0]}.' : '';
     return '$sotFamiliya $n$o';
   }
 
-  // Нормирование рабочего времени строкой
   String get normirovanieLabel =>
       uslNormirovannoye ? 'нормируемое' : 'ненормируемое';
 
-  // Обеденный перерыв строкой
   String get obedLabel {
     if (uslKolObedennyhPereryv == 0) return 'без обеденного перерыва';
     return 'обеденный перерыв: $uslKolObedennyhPereryv × '
@@ -152,7 +142,7 @@ class TrudovoyDogovorData {
 /// Результат генерации документа
 class DocGenerationResult {
   final bool success;
-  final String filePath; // путь к временному файлу
+  final String filePath;
   final String? error;
 
   const DocGenerationResult({

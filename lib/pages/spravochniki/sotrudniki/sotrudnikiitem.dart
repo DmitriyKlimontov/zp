@@ -8,6 +8,7 @@ import 'package:zp/pages/spravochniki/dolznosti/dolznostiitemgetfromlist.dart';
 import 'package:zp/pages/spravochniki/podrazdelenia/podrazdeleniaitemgetfromlist.dart';
 import 'package:zp/pages/spravochniki/uslTruda/uslTrudaitemgetfromlist.dart';
 import 'package:zp/pages/documents/doc_generation_dialog.dart';
+import 'package:zp/pages/documents/doc_generation_dialog.dart';
 
 class SotrudnikiItem extends StatefulWidget {
   final Map<String, dynamic>? item;
@@ -344,7 +345,6 @@ class _SotrudnikiItemState extends State<SotrudnikiItem> {
   }
 
   Future<void> _openDocGenDialog() async {
-    // Сохраняем если есть несохранённые данные — предупреждаем
     if (!_isEdit) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -475,11 +475,10 @@ class _SotrudnikiItemState extends State<SotrudnikiItem> {
         surfaceTintColor: scheme.surfaceTint,
         title: Text(_isEdit ? 'Редактировать сотрудника' : 'Новый сотрудник'),
         actions: [
-          // Кнопка генерации документов (только в режиме редактирования)
           if (_isEdit)
             IconButton(
               icon: const Icon(Icons.picture_as_pdf_outlined),
-              tooltip: 'Генерация документов',
+              tooltip: 'Генерация трудового договора (PDF)',
               onPressed: _openDocGenDialog,
             ),
           TextButton(
@@ -733,7 +732,6 @@ class _SotrudnikiItemState extends State<SotrudnikiItem> {
               onTap: _pickUslTruda, // ← вызывает правильный метод
               suffixIcon: const Icon(Icons.arrow_forward_ios, size: 16),
             ),
-
             const SizedBox(height: 32),
           ],
         ),

@@ -19,12 +19,11 @@ class _DocGenerationDialogState extends State<DocGenerationDialog> {
 
   List<Map<String, dynamic>> _organizacii = [];
   int? _selectedOrgId;
-  DocFormat _format = DocFormat.pdf;
   bool _isLoading = false;
   bool _isGenerating = false;
 
   DocGenerationResult? _result;
-  String? _errorText; // отображаемая ошибка
+  String? _errorText;
 
   @override
   void initState() {
@@ -67,36 +66,29 @@ class _DocGenerationDialogState extends State<DocGenerationDialog> {
     });
 
     try {
-      // Номер договора: если не введён — не передаём (в doc_models
-      // nomerDogovora будет пустой строкой и не отобразится в документе)
       final nomer = _nomerCtrl.text.trim().isNotEmpty
           ? _nomerCtrl.text.trim()
-          : ''; // передаём пустую строку — номер не нужен
+          : '';
 
-      dev.log('[DocGenDialog] Загрузка данных сотрудника...', name: 'DocGen');
+      dev.log('[DocGenDialog] Загружаю данные...', name: 'DocGen');
       final data = await _service.loadTrudovoyDogovorData(
         sotrudnikId: widget.sotrudnikId,
         organizaciyaId: _selectedOrgId!,
-        nomerDogovora: nomer.isNotEmpty ? nomer : null,
+        nomerDogovora: nomer.isNotEmpty ? nomer : ' ',
       );
 
       if (data == null) {
         setState(() {
           _isGenerating = false;
           _errorText =
-              'Не удалось загрузить данные сотрудника или '
-              'организации из базы данных.';
+              'Не удалось загрузить данные сотрудника '
+              'или организации из базы данных.';
         });
-        dev.log('[DocGenDialog] data == null', name: 'DocGen');
         return;
       }
 
-      dev.log(
-        '[DocGenDialog] Данные загружены, запуск генерации...',
-        name: 'DocGen',
-      );
-      final result = await _service.generateTrudovoyDogovor(data, _format);
-
+      dev.log('[DocGenDialog] Генерирую PDF...', name: 'DocGen');
+      final result = await _service.generateTrudovoyDogovor(data);
       setState(() {
         _result = result;
         _isGenerating = false;
@@ -104,16 +96,8 @@ class _DocGenerationDialogState extends State<DocGenerationDialog> {
       });
 
       if (result.success && mounted) {
-        dev.log(
-          '[DocGenDialog] Генерация успешна, открываем...',
-          name: 'DocGen',
-        );
+        dev.log('[DocGenDialog] Открываю...', name: 'DocGen');
         await _service.openDocument(result);
-      } else {
-        dev.log(
-          '[DocGenDialog] Генерация провалилась: ${result.error}',
-          name: 'DocGen',
-        );
       }
     } catch (e, stack) {
       dev.log(
@@ -144,7 +128,7 @@ class _DocGenerationDialogState extends State<DocGenerationDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Заголовок ───────────────────────────────────────
+            // Заголовок
             Row(
               children: [
                 Icon(Icons.picture_as_pdf_outlined, color: scheme.primary),
@@ -164,9 +148,13 @@ class _DocGenerationDialogState extends State<DocGenerationDialog> {
                 ),
               ],
             ),
+            Text(
+              'Генерация PDF',
+              style: text.bodySmall?.copyWith(color: scheme.outline),
+            ),
             const Divider(height: 20),
 
-            // ── Организация ─────────────────────────────────────
+            // Выбор организации
             if (_isLoading)
               const Center(
                 child: Padding(
@@ -212,7 +200,7 @@ class _DocGenerationDialogState extends State<DocGenerationDialog> {
 
             const SizedBox(height: 16),
 
-            // ── Номер договора (необязательно) ──────────────────
+            // Номер договора (необязательно)
             _label(context, 'Номер договора (необязательно)'),
             const SizedBox(height: 6),
             TextField(
@@ -227,43 +215,9 @@ class _DocGenerationDialogState extends State<DocGenerationDialog> {
               ),
             ),
 
-            const SizedBox(height: 16),
-
-            // ── Формат ──────────────────────────────────────────
-            _label(context, 'Формат файла'),
-            const SizedBox(height: 6),
-            SegmentedButton<DocFormat>(
-              segments: const [
-                ButtonSegment(
-                  value: DocFormat.pdf,
-                  icon: Icon(Icons.picture_as_pdf_outlined),
-                  label: Text('PDF'),
-                ),
-                ButtonSegment(
-                  value: DocFormat.docx,
-                  icon: Icon(Icons.description_outlined),
-                  label: Text('DOCX'),
-                ),
-              ],
-              selected: {_format},
-              onSelectionChanged: (s) => setState(() => _format = s.first),
-            ),
-
-            // ── Предупреждение для DOCX ─────────────────────────
-            if (_format == DocFormat.docx) ...[
-              const SizedBox(height: 8),
-              _infoCard(
-                scheme,
-                text,
-                'Для DOCX нужен шаблон assets/templates/'
-                'trudovoy_dogovor.docx с переменными вида {{sot_fio}}. '
-                'Если шаблона нет — используйте PDF.',
-              ),
-            ],
-
             const SizedBox(height: 20),
 
-            // ── Кнопка генерации ────────────────────────────────
+            // Кнопка генерации
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
@@ -279,14 +233,14 @@ class _DocGenerationDialogState extends State<DocGenerationDialog> {
                           color: Colors.white,
                         ),
                       )
-                    : const Icon(Icons.auto_awesome_outlined),
+                    : const Icon(Icons.picture_as_pdf_outlined),
                 label: Text(
-                  _isGenerating ? 'Генерация...' : 'Сгенерировать и открыть',
+                  _isGenerating ? 'Генерация...' : 'Сгенерировать PDF',
                 ),
               ),
             ),
 
-            // ── Блок ошибки ─────────────────────────────────────
+            // Ошибка
             if (_errorText != null) ...[
               const SizedBox(height: 12),
               Container(
@@ -308,7 +262,7 @@ class _DocGenerationDialogState extends State<DocGenerationDialog> {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          'Ошибка генерации',
+                          'Ошибка',
                           style: text.labelMedium?.copyWith(
                             color: scheme.onErrorContainer,
                             fontWeight: FontWeight.w600,
@@ -323,9 +277,9 @@ class _DocGenerationDialogState extends State<DocGenerationDialog> {
                         color: scheme.onErrorContainer,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     Text(
-                      'Подробности — в консоли VSCode (фильтр: DocGen)',
+                      'Подробности: консоль VSCode, фильтр DocGen',
                       style: text.labelSmall?.copyWith(
                         color: scheme.onErrorContainer.withOpacity(0.7),
                       ),
@@ -335,7 +289,7 @@ class _DocGenerationDialogState extends State<DocGenerationDialog> {
               ),
             ],
 
-            // ── Кнопки после успешной генерации ─────────────────
+            // Кнопки после успешной генерации
             if (_result != null && _result!.success) ...[
               const SizedBox(height: 12),
               Row(
@@ -361,8 +315,8 @@ class _DocGenerationDialogState extends State<DocGenerationDialog> {
               _infoCard(
                 scheme,
                 text,
-                'Файл сохранён во временную папку устройства '
-                'и будет автоматически удалён системой при нехватке места.',
+                'Файл во временной папке устройства. '
+                'Удаляется системой автоматически.',
               ),
             ],
           ],
@@ -371,43 +325,35 @@ class _DocGenerationDialogState extends State<DocGenerationDialog> {
     );
   }
 
-  // ── Вспомогательные виджеты ───────────────────────────────────
-
-  Widget _label(BuildContext context, String label) => Text(
+  Widget _label(BuildContext ctx, String label) => Text(
     label,
-    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-      color: Theme.of(context).colorScheme.outline,
-    ),
+    style: Theme.of(
+      ctx,
+    ).textTheme.labelMedium?.copyWith(color: Theme.of(ctx).colorScheme.outline),
   );
 
-  Widget _warnCard(ColorScheme scheme, String text) => Container(
+  Widget _warnCard(ColorScheme s, String msg) => Container(
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
-      color: scheme.errorContainer,
+      color: s.errorContainer,
       borderRadius: BorderRadius.circular(8),
     ),
-    child: Text(
-      text,
-      style: TextStyle(color: scheme.onErrorContainer, fontSize: 13),
-    ),
+    child: Text(msg, style: TextStyle(color: s.onErrorContainer, fontSize: 13)),
   );
 
-  Widget _infoCard(ColorScheme scheme, TextTheme text, String msg) => Container(
+  Widget _infoCard(ColorScheme s, TextTheme t, String msg) => Container(
     padding: const EdgeInsets.all(10),
     decoration: BoxDecoration(
-      color: scheme.surfaceContainerHigh,
+      color: s.surfaceContainerHigh,
       borderRadius: BorderRadius.circular(8),
     ),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(Icons.info_outline, size: 14, color: scheme.outline),
+        Icon(Icons.info_outline, size: 14, color: s.outline),
         const SizedBox(width: 6),
         Expanded(
-          child: Text(
-            msg,
-            style: text.labelSmall?.copyWith(color: scheme.outline),
-          ),
+          child: Text(msg, style: t.labelSmall?.copyWith(color: s.outline)),
         ),
       ],
     ),
