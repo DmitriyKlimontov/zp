@@ -25,7 +25,7 @@ dependencies:
   mask_text_input_formatter: ^2.9.0
   pdf: ^3.11.1          # генерация PDF
   printing: ^5.13.1     # просмотр, печать, отправка PDF
-  docx_template: ^0.5.1 # генерация DOCX по шаблону
+  docx_template: ^0.4.0 # генерация DOCX по шаблону
   path_provider: ^2.1.4 # временные папки устройства
   open_filex: ^4.5.0    # открытие файла на устройстве
   share_plus: ^10.0.2   # отправка по почте/мессенджерам
