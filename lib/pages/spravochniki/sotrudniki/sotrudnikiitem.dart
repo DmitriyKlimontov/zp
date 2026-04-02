@@ -8,7 +8,6 @@ import 'package:zp/pages/spravochniki/dolznosti/dolznostiitemgetfromlist.dart';
 import 'package:zp/pages/spravochniki/podrazdelenia/podrazdeleniaitemgetfromlist.dart';
 import 'package:zp/pages/spravochniki/uslTruda/uslTrudaitemgetfromlist.dart';
 import 'package:zp/pages/documents/doc_generation_dialog.dart';
-import 'package:zp/pages/documents/doc_generation_dialog.dart';
 
 class SotrudnikiItem extends StatefulWidget {
   final Map<String, dynamic>? item;

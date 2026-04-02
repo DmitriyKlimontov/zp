@@ -3,6 +3,7 @@ import 'package:zp/pages/home.dart';
 import 'package:zp/db/database.dart';
 import 'package:zp/pages/settings.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:zp/services/work_calendar.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -10,6 +11,7 @@ void main() async {
   await DatabaseHelper()
       .database; // инициализация и создание таблиц при первом запуске
   await AppPrefsService.instance.init(); // инициализация настроек
+  await WorkCalendar.instance.load();
   runApp(const MyApp());
 }
 
