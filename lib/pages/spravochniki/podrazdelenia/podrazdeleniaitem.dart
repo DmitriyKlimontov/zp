@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:zp/db/database.dart';
 import 'package:zp/pages/spravochniki/spravochniki_shared.dart';
 import 'package:zp/pages/spravochniki/organizacii/organizaciiitemgetfromlist.dart';
+import 'package:zp/core/widgets/item_action_bar.dart';
 
 class PodrazdeleniaItem extends StatefulWidget {
   final Map<String, dynamic>? item;
@@ -18,7 +19,7 @@ class _PodrazdeleniaItemState extends State<PodrazdeleniaItem> {
 
   late final TextEditingController _nazvanie;
   late final TextEditingController _kod;
-  late final TextEditingController _orgNazvanie; // отображение
+  late final TextEditingController _orgNazvanie;
 
   int _organizaciyaId = 0;
   int _rukovoditelId = 0;
@@ -91,25 +92,6 @@ class _PodrazdeleniaItemState extends State<PodrazdeleniaItem> {
         title: Text(
           _isEdit ? 'Редактировать подразделение' : 'Новое подразделение',
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Отмена'),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: FilledButton(
-              onPressed: _isSaving ? null : _save,
-              child: _isSaving
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Сохранить'),
-            ),
-          ),
-        ],
       ),
       body: Form(
         key: _formKey,
@@ -144,6 +126,12 @@ class _PodrazdeleniaItemState extends State<PodrazdeleniaItem> {
             const SizedBox(height: 32),
           ],
         ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: ItemActionBar(
+        isSaving: _isSaving,
+        onCancel: () => Navigator.pop(context),
+        onSave: _save,
       ),
     );
   }

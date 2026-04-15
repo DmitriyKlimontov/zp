@@ -4,6 +4,7 @@ import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:zp/db/database.dart';
 import 'package:zp/pages/spravochniki/spravochniki_shared.dart';
 import 'package:zp/pages/spravochniki/sotrudniki/sotrudnikiitemgetfromlist.dart';
+import 'package:zp/core/widgets/item_action_bar.dart';
 
 class NalogovievichetiItem extends StatefulWidget {
   final Map<String, dynamic>? item;
@@ -169,30 +170,11 @@ class _NalogovievichetiItemState extends State<NalogovievichetiItem> {
         backgroundColor: scheme.surface,
         surfaceTintColor: scheme.surfaceTint,
         title: Text(_isEdit ? 'Редактировать вычет' : 'Новый вычет'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Отмена'),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: FilledButton(
-              onPressed: _isSaving ? null : _save,
-              child: _isSaving
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Сохранить'),
-            ),
-          ),
-        ],
       ),
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
           children: [
             buildSectionHeader(context, 'Сотрудник'),
             buildTextField(
@@ -248,6 +230,12 @@ class _NalogovievichetiItemState extends State<NalogovievichetiItem> {
             const SizedBox(height: 32),
           ],
         ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: ItemActionBar(
+        isSaving: _isSaving,
+        onCancel: () => Navigator.pop(context),
+        onSave: _save,
       ),
     );
   }

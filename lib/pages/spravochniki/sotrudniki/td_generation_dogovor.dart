@@ -1,28 +1,34 @@
-// lib/pages/documents/doc_generation_dialog.dart
+// Диалог модального окна генерации трудового договора.
 
 import 'dart:developer' as dev;
 import 'package:flutter/material.dart';
-import 'package:zp/services/documents/doc_models.dart';
-import 'package:zp/services/documents/doc_service.dart';
+import 'package:flutter/services.dart';
+import 'package:zp/services/generators/generator_models.dart';
+import 'package:zp/services/generators/trudovoy_dogovor/td_data.dart';
+import 'package:zp/services/generators/trudovoy_dogovor/td_service.dart';
+import 'package:zp/services/generators/document_opener.dart';
 
-class DocGenerationDialog extends StatefulWidget {
+class TdGenerationDogovor extends StatefulWidget {
   final int sotrudnikId;
-  const DocGenerationDialog({super.key, required this.sotrudnikId});
+  const TdGenerationDogovor({super.key, required this.sotrudnikId});
 
   @override
-  State<DocGenerationDialog> createState() => _DocGenerationDialogState();
+  State<TdGenerationDogovor> createState() => _TdGenerationDialogState();
 }
 
-class _DocGenerationDialogState extends State<DocGenerationDialog> {
-  final _service = DocService();
+class _TdGenerationDialogState extends State<TdGenerationDogovor> {
+  final _service = TdService();
   final _nomerCtrl = TextEditingController();
+  final _ispSrokKolCtrl = TextEditingController(text: '3');
 
   List<Map<String, dynamic>> _organizacii = [];
   int? _selectedOrgId;
+  bool _estIspSrok = false;
+  IspSrokUnit _ispSrokUnit = IspSrokUnit.mesyacy;
   bool _isLoading = false;
   bool _isGenerating = false;
 
-  DocGenerationResult? _result;
+  GeneratorResult? _result;
   String? _errorText;
 
   @override
@@ -34,6 +40,7 @@ class _DocGenerationDialogState extends State<DocGenerationDialog> {
   @override
   void dispose() {
     _nomerCtrl.dispose();
+    _ispSrokKolCtrl.dispose();
     super.dispose();
   }
 
@@ -64,17 +71,19 @@ class _DocGenerationDialogState extends State<DocGenerationDialog> {
       _result = null;
       _errorText = null;
     });
-
     try {
       final nomer = _nomerCtrl.text.trim().isNotEmpty
           ? _nomerCtrl.text.trim()
-          : '';
+          : null;
 
-      dev.log('[DocGenDialog] Загружаю данные...', name: 'DocGen');
-      final data = await _service.loadTrudovoyDogovorData(
+      dev.log('[TdGenerationDialog] Загружаю данные...', name: 'DocGen');
+      final data = await _service.loadData(
         sotrudnikId: widget.sotrudnikId,
         organizaciyaId: _selectedOrgId!,
-        nomerDogovora: nomer.isNotEmpty ? nomer : ' ',
+        nomerDogovora: nomer,
+        estIspSrok: _estIspSrok,
+        ispSrokKolichestvo: int.tryParse(_ispSrokKolCtrl.text.trim()) ?? 3,
+        ispSrokUnit: _ispSrokUnit,
       );
 
       if (data == null) {
@@ -87,8 +96,8 @@ class _DocGenerationDialogState extends State<DocGenerationDialog> {
         return;
       }
 
-      dev.log('[DocGenDialog] Генерирую PDF...', name: 'DocGen');
-      final result = await _service.generateTrudovoyDogovor(data);
+      dev.log('[TdGenerationDialog] Генерирую PDF...', name: 'DocGen');
+      final result = await _service.generatePdf(data);
       setState(() {
         _result = result;
         _isGenerating = false;
@@ -96,12 +105,14 @@ class _DocGenerationDialogState extends State<DocGenerationDialog> {
       });
 
       if (result.success && mounted) {
-        dev.log('[DocGenDialog] Открываю...', name: 'DocGen');
-        await _service.openDocument(result);
+        await DocumentOpener.open(
+          result,
+          name: 'Трудовой договор ${data.sotFioShort}',
+        );
       }
     } catch (e, stack) {
       dev.log(
-        '[DocGenDialog] ИСКЛЮЧЕНИЕ: $e',
+        '[TdGenerationDialog] ИСКЛЮЧЕНИЕ: $e',
         name: 'DocGen',
         error: e,
         stackTrace: stack,
@@ -113,7 +124,12 @@ class _DocGenerationDialogState extends State<DocGenerationDialog> {
     }
   }
 
-  // ── Build ─────────────────────────────────────────────────────
+  String _previewIspSrok() {
+    if (!_estIspSrok) return 'Работник принимается без испытательного срока.';
+    final n = int.tryParse(_ispSrokKolCtrl.text.trim()) ?? 0;
+    return 'Работнику устанавливается испытательный срок: '
+        '${_ispSrokUnit.labelFor(n)}.';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -154,7 +170,7 @@ class _DocGenerationDialogState extends State<DocGenerationDialog> {
             ),
             const Divider(height: 20),
 
-            // Выбор организации
+            // Организация
             if (_isLoading)
               const Center(
                 child: Padding(
@@ -173,6 +189,7 @@ class _DocGenerationDialogState extends State<DocGenerationDialog> {
               const SizedBox(height: 6),
               DropdownButtonFormField<int>(
                 value: _selectedOrgId,
+                isExpanded: true,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
                   contentPadding: EdgeInsets.symmetric(
@@ -180,17 +197,24 @@ class _DocGenerationDialogState extends State<DocGenerationDialog> {
                     vertical: 10,
                   ),
                 ),
-                items: _organizacii
-                    .map(
-                      (o) => DropdownMenuItem<int>(
-                        value: o['id'] as int,
-                        child: Text(
-                          o['nazvanie']?.toString() ?? '—',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    )
-                    .toList(),
+                items: _organizacii.map((o) {
+                  // Краткое наименование предпочтительнее; fallback → полное
+                  final display =
+                      (o['kratkoeNazvanie']?.toString().trim().isNotEmpty ==
+                                  true
+                              ? o['kratkoeNazvanie']
+                              : o['nazvanie'])
+                          ?.toString() ??
+                      '—';
+                  return DropdownMenuItem<int>(
+                    value: o['id'] as int,
+                    child: Text(
+                      display,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  );
+                }).toList(),
                 onChanged: (v) => setState(() {
                   _selectedOrgId = v;
                   _errorText = null;
@@ -200,7 +224,7 @@ class _DocGenerationDialogState extends State<DocGenerationDialog> {
 
             const SizedBox(height: 16),
 
-            // Номер договора (необязательно)
+            // Номер договора
             _label(context, 'Номер договора (необязательно)'),
             const SizedBox(height: 6),
             TextField(
@@ -214,6 +238,87 @@ class _DocGenerationDialogState extends State<DocGenerationDialog> {
                 ),
               ),
             ),
+
+            const SizedBox(height: 16),
+
+            // Испытательный срок
+            _label(context, 'Испытательный срок'),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<bool>(
+              value: _estIspSrok,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: false,
+                  child: Text('Без испытательного срока'),
+                ),
+                DropdownMenuItem(
+                  value: true,
+                  child: Text('С испытательным сроком'),
+                ),
+              ],
+              onChanged: (v) => setState(() {
+                _estIspSrok = v!;
+                _errorText = null;
+              }),
+            ),
+
+            if (_estIspSrok) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  SizedBox(
+                    width: 90,
+                    child: TextFormField(
+                      controller: _ispSrokKolCtrl,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      textAlign: TextAlign.center,
+                      decoration: const InputDecoration(
+                        labelText: 'Кол-во',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 10,
+                        ),
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: DropdownButtonFormField<IspSrokUnit>(
+                      value: _ispSrokUnit,
+                      decoration: const InputDecoration(
+                        labelText: 'Единица',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                      ),
+                      items: IspSrokUnit.values
+                          .map(
+                            (u) => DropdownMenuItem(
+                              value: u,
+                              child: Text(u.label),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) => setState(() => _ispSrokUnit = v!),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              _infoCard(scheme, text, _previewIspSrok()),
+            ],
 
             const SizedBox(height: 20),
 
@@ -296,7 +401,7 @@ class _DocGenerationDialogState extends State<DocGenerationDialog> {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () => _service.openDocument(_result!),
+                      onPressed: () => DocumentOpener.open(_result!),
                       icon: const Icon(Icons.open_in_new_outlined),
                       label: const Text('Открыть'),
                     ),
@@ -304,7 +409,11 @@ class _DocGenerationDialogState extends State<DocGenerationDialog> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () => _service.shareDocument(_result!),
+                      onPressed: () => DocumentOpener.share(
+                        _result!,
+                        subject: 'Трудовой договор',
+                        text: 'Трудовой договор сотрудника',
+                      ),
                       icon: const Icon(Icons.share_outlined),
                       label: const Text('Поделиться'),
                     ),

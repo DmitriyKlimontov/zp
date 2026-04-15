@@ -1,6 +1,8 @@
-// lib/services/documents/doc_models.dart
+// Модель данных для трудового договора.
+// Изолирована от других документов.
 
-/// Все данные для генерации трудового договора
+import 'package:zp/services/generators/generator_models.dart';
+
 class TrudovoyDogovorData {
   // Организация
   final String orgNazvanie;
@@ -42,11 +44,12 @@ class TrudovoyDogovorData {
   final String sotBankName;
   final String sotDatePriema;
 
-  // Должность
+  // Должность и тип оплаты
   final String dolzhnostNazvanie;
   final String podrazdelenie;
-  final double okladMin;
-  final double okladMax;
+  final bool isOklad;
+  final double oklad;
+  final double chasovayaStavka;
 
   // Условия труда
   final String uslTrudaNazvanie;
@@ -61,8 +64,13 @@ class TrudovoyDogovorData {
   final int uslChasovVechernih;
   final int uslChasovNochnykh;
 
+  // Испытательный срок
+  final bool estIspSrok;
+  final int ispSrokKolichestvo;
+  final IspSrokUnit ispSrokUnit;
+
   // Служебные
-  final String nomerDogovora; // пустая строка = номер не нужен
+  final String nomerDogovora;
   final String dateSostavleniya;
 
   const TrudovoyDogovorData({
@@ -104,8 +112,9 @@ class TrudovoyDogovorData {
     required this.sotDatePriema,
     required this.dolzhnostNazvanie,
     required this.podrazdelenie,
-    required this.okladMin,
-    required this.okladMax,
+    required this.isOklad,
+    required this.oklad,
+    required this.chasovayaStavka,
     required this.uslTrudaNazvanie,
     required this.uslKlassUslTruda,
     required this.uslGraficRaboty,
@@ -117,6 +126,9 @@ class TrudovoyDogovorData {
     required this.uslNormirovannoye,
     required this.uslChasovVechernih,
     required this.uslChasovNochnykh,
+    required this.estIspSrok,
+    required this.ispSrokKolichestvo,
+    required this.ispSrokUnit,
     required this.nomerDogovora,
     required this.dateSostavleniya,
   });
@@ -137,17 +149,25 @@ class TrudovoyDogovorData {
     return 'обеденный перерыв: $uslKolObedennyhPereryv × '
         '$uslProdObedennyhPereryv мин.';
   }
-}
 
-/// Результат генерации документа
-class DocGenerationResult {
-  final bool success;
-  final String filePath;
-  final String? error;
+  String get ispSrokLabel {
+    if (!estIspSrok) return 'Работник принимается без испытательного срока.';
+    return 'Работнику устанавливается испытательный срок: '
+        '${ispSrokUnit.labelFor(ispSrokKolichestvo)}.';
+  }
 
-  const DocGenerationResult({
-    required this.success,
-    required this.filePath,
-    this.error,
-  });
+  String get oplatyLabel {
+    if (isOklad) {
+      return 'Работнику устанавливается должностной оклад '
+          '${oklad.toStringAsFixed(0)} руб. в месяц. '
+          'При расчёте часовой тарифной ставки оклад делится '
+          'на норму рабочего времени расчётного месяца.';
+    }
+    return 'Работнику устанавливается часовая тарифная ставка '
+        '${chasovayaStavka.toStringAsFixed(2)} руб./час. '
+        'Заработная плата начисляется за фактически отработанные часы.';
+  }
+
+  String get tipoplatyLabel =>
+      isOklad ? 'Оклад (месячная)' : 'Часовая тарифная ставка';
 }

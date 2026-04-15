@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:zp/db/database.dart';
 import 'package:zp/pages/spravochniki/spravochniki_shared.dart';
 import 'package:zp/pages/spravochniki/podrazdelenia/podrazdeleniaitemgetfromlist.dart';
+import 'package:zp/core/widgets/item_action_bar.dart';
 
 class DolznostiItem extends StatefulWidget {
   final Map<String, dynamic>? item;
@@ -17,11 +18,12 @@ class _DolznostiItemState extends State<DolznostiItem> {
 
   late final TextEditingController _nazvanie;
   late final TextEditingController _kod;
-  late final TextEditingController _okladMin;
-  late final TextEditingController _okladMax;
+  late final TextEditingController _oklad;
+  late final TextEditingController _chasovayaStavka;
   late final TextEditingController _podrazNazvanie;
 
   int _podrazdelenieId = 0;
+  bool _isOklad = true; // true = оклад, false = часовая ставка
 
   bool get _isEdit => widget.item != null;
 
@@ -29,20 +31,31 @@ class _DolznostiItemState extends State<DolznostiItem> {
   void initState() {
     super.initState();
     final d = widget.item;
-    _nazvanie = TextEditingController(text: d?['nazvanie'] ?? '');
-    _kod = TextEditingController(text: d?['kod'] ?? '');
-    _okladMin = TextEditingController(text: d?['okladMin']?.toString() ?? '');
-    _okladMax = TextEditingController(text: d?['okladMax']?.toString() ?? '');
+    _nazvanie = TextEditingController(text: d?['nazvanie']?.toString() ?? '');
+    _kod = TextEditingController(text: d?['kod']?.toString() ?? '');
+    _oklad = TextEditingController(text: d?['oklad']?.toString() ?? '');
+    _chasovayaStavka = TextEditingController(
+      text: d?['chasovayaStavka']?.toString() ?? '',
+    );
     _podrazNazvanie = TextEditingController(
       text: d?['podrazNazvanie']?.toString() ?? '',
     );
     _podrazdelenieId = d?['podrazdelenieId'] as int? ?? 0;
+
+    _isOklad = (d?['isOklad'] as int? ?? 1) == 1;
   }
 
   @override
   void dispose() {
-    for (final c in [_nazvanie, _kod, _okladMin, _okladMax, _podrazNazvanie])
+    for (final c in [
+      _nazvanie,
+      _kod,
+      _oklad,
+      _chasovayaStavka,
+      _podrazNazvanie,
+    ]) {
       c.dispose();
+    }
     super.dispose();
   }
 
@@ -62,18 +75,29 @@ class _DolznostiItemState extends State<DolznostiItem> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
+
+    final okladVal = _isOklad
+        ? double.tryParse(_oklad.text.trim()) ?? 0.0
+        : 0.0;
+    final chasovayaVal = !_isOklad
+        ? double.tryParse(_chasovayaStavka.text.trim()) ?? 0.0
+        : 0.0;
+
     final data = {
       'nazvanie': _nazvanie.text.trim(),
       'kod': _kod.text.trim(),
-      'okladMin': double.tryParse(_okladMin.text.trim()) ?? 0.0,
-      'okladMax': double.tryParse(_okladMax.text.trim()) ?? 0.0,
+      'oklad': okladVal,
+      'chasovayaStavka': chasovayaVal,
+      'isOklad': _isOklad ? 1 : 0,
       'podrazdelenieId': _podrazdelenieId,
     };
+
     if (_isEdit) {
       await _db.update('dolzhnosti', data, widget.item!['id'] as int);
     } else {
       await _db.insert('dolzhnosti', data);
     }
+
     if (mounted) {
       showSnack(
         context,
@@ -86,37 +110,21 @@ class _DolznostiItemState extends State<DolznostiItem> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+
     return Scaffold(
       backgroundColor: scheme.surface,
       appBar: AppBar(
         backgroundColor: scheme.surface,
         surfaceTintColor: scheme.surfaceTint,
         title: Text(_isEdit ? 'Редактировать должность' : 'Новая должность'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Отмена'),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: FilledButton(
-              onPressed: _isSaving ? null : _save,
-              child: _isSaving
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Сохранить'),
-            ),
-          ),
-        ],
       ),
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
           children: [
+            // ── Основные данные ─────────────────────────────────
             buildSectionHeader(context, 'Основные данные'),
             buildTextField(
               context: context,
@@ -131,6 +139,7 @@ class _DolznostiItemState extends State<DolznostiItem> {
               label: 'Код должности',
             ),
 
+            // ── Подразделение ───────────────────────────────────
             buildSectionHeader(context, 'Подразделение'),
             buildTextField(
               context: context,
@@ -143,22 +152,114 @@ class _DolznostiItemState extends State<DolznostiItem> {
                   _podrazdelenieId == 0 ? 'Выберите подразделение' : null,
             ),
 
-            buildSectionHeader(context, 'Оклад'),
-            buildTextField(
-              context: context,
-              controller: _okladMin,
-              label: 'Минимальный оклад, ₽',
-              keyboardType: TextInputType.number,
+            // ── Тип оплаты ──────────────────────────────────────
+            buildSectionHeader(context, 'Тип оплаты труда'),
+
+            // Пояснение: оклад и часовая ставка — взаимоисключающие
+            Container(
+              padding: const EdgeInsets.all(10),
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline, size: 14, color: scheme.outline),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Оклад — фиксированная месячная сумма. '
+                      'Часовая ставка умножается на фактически '
+                      'отработанные часы. Выбрать можно только '
+                      'один вид оплаты.',
+                      style: text.bodySmall?.copyWith(color: scheme.outline),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            buildTextField(
-              context: context,
-              controller: _okladMax,
-              label: 'Максимальный оклад, ₽',
-              keyboardType: TextInputType.number,
+
+            SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(
+                  value: true,
+                  icon: Icon(Icons.calendar_month_outlined),
+                  label: Text('Оклад'),
+                ),
+                ButtonSegment(
+                  value: false,
+                  icon: Icon(Icons.access_time_outlined),
+                  label: Text('Часовая ставка'),
+                ),
+              ],
+              selected: {_isOklad},
+              onSelectionChanged: (s) => setState(() => _isOklad = s.first),
+            ),
+            const SizedBox(height: 16),
+
+            // Показываем только активное поле
+            if (_isOklad)
+              buildTextField(
+                context: context,
+                controller: _oklad,
+                label: 'Оклад, ₽/мес',
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) {
+                    return 'Введите оклад';
+                  }
+                  if (double.tryParse(v.trim()) == null) {
+                    return 'Введите корректное число';
+                  }
+                  return null;
+                },
+              )
+            else
+              buildTextField(
+                context: context,
+                controller: _chasovayaStavka,
+                label: 'Часовая ставка, ₽/час',
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) {
+                    return 'Введите часовую ставку';
+                  }
+                  if (double.tryParse(v.trim()) == null) {
+                    return 'Введите корректное число';
+                  }
+                  return null;
+                },
+              ),
+
+            // Пояснение под активным полем
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                _isOklad
+                    ? 'Оклад делится на норму часов '
+                          'расчётного месяца — часовая ставка будет меняться '
+                          'каждый месяц.'
+                    : 'Часовая ставка фиксирована и умножается на '
+                          'фактически отработанные часы. '
+                          'Норма часов месяца не влияет на ставку.',
+                style: text.bodySmall?.copyWith(color: scheme.outline),
+              ),
             ),
             const SizedBox(height: 32),
           ],
         ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: ItemActionBar(
+        isSaving: _isSaving,
+        onCancel: () => Navigator.pop(context),
+        onSave: _save,
       ),
     );
   }

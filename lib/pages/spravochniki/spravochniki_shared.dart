@@ -1,8 +1,7 @@
-import 'package:flutter/material.dart';
+// Общие виджеты для страниц справочников.
+// Кнопки сохранения/отмены — в lib/core/widgets/item_action_bar.dart
 
-// ─────────────────────────────────────────────────────────────
-//  Общие виджеты и утилиты для всех страниц справочников
-// ─────────────────────────────────────────────────────────────
+import 'package:flutter/material.dart';
 
 /// Секция-заголовок внутри формы элемента
 Widget buildSectionHeader(BuildContext context, String title) {

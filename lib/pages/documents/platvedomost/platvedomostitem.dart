@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:zp/db/database.dart';
 import 'package:zp/pages/spravochniki/spravochniki_shared.dart';
 import 'package:zp/pages/spravochniki/organizacii/organizaciiitemgetfromlist.dart';
 import 'package:zp/pages/spravochniki/podrazdelenia/podrazdeleniaitemgetfromlist.dart';
+import 'package:zp/core/widgets/item_action_bar.dart';
 
 class PlatvedomostItem extends StatefulWidget {
   final Map<String, dynamic>? item;
@@ -26,6 +29,22 @@ class _PlatvedomostItemState extends State<PlatvedomostItem> {
   late final TextEditingController _orgNazvanie;
   late final TextEditingController _podrazNazvanie;
 
+  final _maskPeriod = MaskTextInputFormatter(
+    mask: '##.####',
+    filter: {'#': RegExp(r'[0-9]')},
+    type: MaskAutoCompletionType.lazy,
+  );
+  final _maskDate1 = MaskTextInputFormatter(
+    mask: '##.##.####',
+    filter: {'#': RegExp(r'[0-9]')},
+    type: MaskAutoCompletionType.lazy,
+  );
+  final _maskDate2 = MaskTextInputFormatter(
+    mask: '##.##.####',
+    filter: {'#': RegExp(r'[0-9]')},
+    type: MaskAutoCompletionType.lazy,
+  );
+
   int _organizaciyaId = 0;
   int _podrazdelenieId = 0;
   String _vidVyplaty = 'zarplata';
@@ -33,6 +52,35 @@ class _PlatvedomostItemState extends State<PlatvedomostItem> {
   String _statusVedomosti = 'chernovik';
 
   bool get _isEdit => widget.item != null;
+
+  void _syncMask(MaskTextInputFormatter m, String v) {
+    if (v.isEmpty) return;
+    m.formatEditUpdate(
+      TextEditingValue.empty,
+      TextEditingValue(text: v.replaceAll('.', '')),
+    );
+  }
+
+  String? _validateDate(String? v) {
+    if (v == null || v.trim().isEmpty) return null;
+    try {
+      DateFormat('dd.MM.yyyy').parseStrict(v.trim());
+      return null;
+    } catch (_) {
+      return 'Формат: ДД.ММ.ГГГГ';
+    }
+  }
+
+  String? _validatePeriod(String? v) {
+    if (v == null || v.trim().isEmpty) return 'Обязательное поле';
+    final p = v.trim().split('.');
+    if (p.length != 2) return 'Формат: ММ.ГГГГ';
+    final m = int.tryParse(p[0]) ?? 0;
+    final y = int.tryParse(p[1]) ?? 0;
+    if (m < 1 || m > 12) return 'Месяц от 01 до 12';
+    if (y < 2000 || y > 2100) return 'Год от 2000 до 2100';
+    return null;
+  }
 
   @override
   void initState() {
@@ -70,6 +118,9 @@ class _PlatvedomostItemState extends State<PlatvedomostItem> {
     _vidVyplaty = d?['vidVyplaty']?.toString() ?? 'zarplata';
     _sposobVyplaty = d?['sposobVyplaty']?.toString() ?? 'bank';
     _statusVedomosti = d?['statusVedomosti']?.toString() ?? 'chernovik';
+    _syncMask(_maskPeriod, _periodMesyac.text);
+    _syncMask(_maskDate1, _dateVyplaty.text);
+    _syncMask(_maskDate2, _dateUtverzhdeniya.text);
   }
 
   @override
@@ -89,18 +140,26 @@ class _PlatvedomostItemState extends State<PlatvedomostItem> {
     super.dispose();
   }
 
-  Future<void> _pickDate(TextEditingController ctrl) async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-    );
-    if (date != null) {
-      ctrl.text =
-          '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
-    }
-  }
+  Widget _dateField(
+    TextEditingController ctrl,
+    MaskTextInputFormatter mask,
+    String label,
+  ) => Padding(
+    padding: const EdgeInsets.only(bottom: 16),
+    child: TextFormField(
+      controller: ctrl,
+      inputFormatters: [mask],
+      keyboardType: TextInputType.number,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: 'ДДММГГГГ',
+        helperText: 'Вводите только цифры',
+        border: const OutlineInputBorder(),
+        suffixIcon: const Icon(Icons.calendar_today_outlined, size: 18),
+      ),
+      validator: _validateDate,
+    ),
+  );
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
@@ -139,30 +198,17 @@ class _PlatvedomostItemState extends State<PlatvedomostItem> {
         backgroundColor: scheme.surface,
         surfaceTintColor: scheme.surfaceTint,
         title: Text(_isEdit ? 'Редактировать ведомость' : 'Новая ведомость'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Отмена'),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: FilledButton(
-              onPressed: _isSaving ? null : _save,
-              child: _isSaving
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Сохранить'),
-            ),
-          ),
-        ],
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: ItemActionBar(
+        isSaving: _isSaving,
+        onCancel: () => Navigator.pop(context),
+        onSave: _save,
       ),
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
           children: [
             buildSectionHeader(context, 'Организация и подразделение'),
             buildTextField(
@@ -190,7 +236,7 @@ class _PlatvedomostItemState extends State<PlatvedomostItem> {
             buildTextField(
               context: context,
               controller: _podrazNazvanie,
-              label: 'Подразделение (оставьте пустым для всей орг.)',
+              label: 'Подразделение',
               readOnly: true,
               onTap: () async {
                 final r = await Navigator.push<Map<String, dynamic>>(
@@ -216,22 +262,22 @@ class _PlatvedomostItemState extends State<PlatvedomostItem> {
               validator: (v) =>
                   v == null || v.trim().isEmpty ? 'Обязательное поле' : null,
             ),
-            buildTextField(
-              context: context,
-              controller: _periodMesyac,
-              label: 'Период (ММ.ГГГГ)',
-              keyboardType: TextInputType.number,
-              validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'Обязательное поле' : null,
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: TextFormField(
+                controller: _periodMesyac,
+                inputFormatters: [_maskPeriod],
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Период (ММ.ГГГГ)',
+                  hintText: 'ММГГГГ',
+                  helperText: 'Вводите только цифры',
+                  border: OutlineInputBorder(),
+                ),
+                validator: _validatePeriod,
+              ),
             ),
-            buildTextField(
-              context: context,
-              controller: _dateVyplaty,
-              label: 'Дата выплаты',
-              readOnly: true,
-              onTap: () => _pickDate(_dateVyplaty),
-              suffixIcon: const Icon(Icons.calendar_today_outlined, size: 18),
-            ),
+            _dateField(_dateVyplaty, _maskDate1, 'Дата выплаты'),
             buildTextField(
               context: context,
               controller: _itogoPoPerechen,
@@ -273,14 +319,7 @@ class _PlatvedomostItemState extends State<PlatvedomostItem> {
               controller: _utverdilFio,
               label: 'Кто утвердил (ФИО)',
             ),
-            buildTextField(
-              context: context,
-              controller: _dateUtverzhdeniya,
-              label: 'Дата утверждения',
-              readOnly: true,
-              onTap: () => _pickDate(_dateUtverzhdeniya),
-              suffixIcon: const Icon(Icons.calendar_today_outlined, size: 18),
-            ),
+            _dateField(_dateUtverzhdeniya, _maskDate2, 'Дата утверждения'),
 
             buildSectionHeader(context, 'Статус'),
             DropdownButtonFormField<String>(
@@ -307,7 +346,6 @@ class _PlatvedomostItemState extends State<PlatvedomostItem> {
               label: 'Примечание',
               maxLines: 3,
             ),
-            const SizedBox(height: 32),
           ],
         ),
       ),

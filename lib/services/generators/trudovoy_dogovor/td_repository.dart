@@ -1,34 +1,30 @@
-// lib/services/documents/doc_repository.dart
-//
-// Репозиторий: загружает все нужные данные из БД
-// и собирает их в единую модель TrudovoyDogovorData.
-// Не зависит от UI.
-
 import 'package:intl/intl.dart';
 import 'package:zp/db/database.dart';
-import 'doc_models.dart';
+import 'package:zp/services/generators/generator_models.dart';
+import 'td_data.dart';
 
-class DocRepository {
+class TdRepository {
   final DatabaseHelper _db;
-  DocRepository([DatabaseHelper? db]) : _db = db ?? DatabaseHelper();
+  TdRepository([DatabaseHelper? db]) : _db = db ?? DatabaseHelper();
 
-  /// Загружает все данные для трудового договора сотрудника.
-  /// Возвращает null если сотрудник или организация не найдены.
-  Future<TrudovoyDogovorData?> loadTrudovoyDogovorData({
+  Future<TrudovoyDogovorData?> load({
     required int sotrudnikId,
     required int organizaciyaId,
     String? nomerDogovora,
+    bool estIspSrok = false,
+    int ispSrokKolichestvo = 3,
+    IspSrokUnit ispSrokUnit = IspSrokUnit.mesyacy,
   }) async {
     final db = await _db.database;
 
-    // ── Сотрудник + должность + подразделение + условия труда ────
     final sotRows = await db.rawQuery(
       '''
       SELECT s.*,
-             d.nazvanie   AS dolzhnostNazvanie,
-             d.okladMin   AS okladMin,
-             d.okladMax   AS okladMax,
-             p.nazvanie   AS podrazdelenie,
+             d.nazvanie          AS dolzhnostNazvanie,
+             d.oklad             AS oklad,
+             d.chasovayaStavka   AS chasovayaStavka,
+             d.isOklad           AS isOklad,
+             p.nazvanie          AS podrazdelenie,
              u.nazvanie              AS uslTrudaNazvanie,
              u.klassUslTruda         AS uslKlassUslTruda,
              u.graficRaboty          AS uslGraficRaboty,
@@ -53,21 +49,14 @@ class DocRepository {
     if (sotRows.isEmpty) return null;
     final s = sotRows.first;
 
-    // ── Организация ───────────────────────────────────────────────
     final orgRows = await db.rawQuery(
       'SELECT * FROM organizaciya WHERE id = ? LIMIT 1',
       [organizaciyaId],
     );
-
     if (orgRows.isEmpty) return null;
     final o = orgRows.first;
 
-    // ── Номер договора и дата ─────────────────────────────────────
-    final today = DateFormat('dd.MM.yyyy').format(DateTime.now());
-    final nomer = nomerDogovora ?? 'ТД-$sotrudnikId-${DateTime.now().year}';
-
     return TrudovoyDogovorData(
-      // Организация
       orgNazvanie: o['nazvanie']?.toString() ?? '',
       orgKratkoeNazvanie: o['kratkoeNazvanie']?.toString() ?? '',
       orgInn: o['inn']?.toString() ?? '',
@@ -83,8 +72,6 @@ class DocRepository {
       orgBankName: o['bankName']?.toString() ?? '',
       orgDirektorFio: o['direktorFio']?.toString() ?? '',
       orgBuhgalterFio: o['buhgalterFio']?.toString() ?? '',
-
-      // Сотрудник
       sotFamiliya: s['familiya']?.toString() ?? '',
       sotName: s['name']?.toString() ?? '',
       sotOtchestvo: s['otchestvo']?.toString() ?? '',
@@ -107,14 +94,11 @@ class DocRepository {
       sotBankBIK: s['bankBIK']?.toString() ?? '',
       sotBankName: s['bankName']?.toString() ?? '',
       sotDatePriema: s['datePriema']?.toString() ?? '',
-
-      // Должность
       dolzhnostNazvanie: s['dolzhnostNazvanie']?.toString() ?? '',
       podrazdelenie: s['podrazdelenie']?.toString() ?? '',
-      okladMin: (s['okladMin'] as num?)?.toDouble() ?? 0.0,
-      okladMax: (s['okladMax'] as num?)?.toDouble() ?? 0.0,
-
-      // Условия труда
+      isOklad: (s['isOklad'] as int? ?? 1) == 1,
+      oklad: (s['oklad'] as num?)?.toDouble() ?? 0.0,
+      chasovayaStavka: (s['chasovayaStavka'] as num?)?.toDouble() ?? 0.0,
       uslTrudaNazvanie: s['uslTrudaNazvanie']?.toString() ?? '',
       uslKlassUslTruda: s['uslKlassUslTruda']?.toString() ?? '',
       uslGraficRaboty: s['uslGraficRaboty']?.toString() ?? '',
@@ -126,15 +110,14 @@ class DocRepository {
       uslNormirovannoye: (s['uslNormirovannoye'] as int? ?? 1) == 1,
       uslChasovVechernih: s['uslChasovVechernih'] as int? ?? 0,
       uslChasovNochnykh: s['uslChasovNochnykh'] as int? ?? 0,
-
-      // Служебные
-      nomerDogovora: nomer,
-      dateSostavleniya: today,
+      estIspSrok: estIspSrok,
+      ispSrokKolichestvo: ispSrokKolichestvo,
+      ispSrokUnit: ispSrokUnit,
+      nomerDogovora: nomerDogovora ?? '',
+      dateSostavleniya: DateFormat('dd.MM.yyyy').format(DateTime.now()),
     );
   }
 
-  /// Список всех организаций (для выбора при генерации)
-  Future<List<Map<String, dynamic>>> getOrganizacii() async {
-    return await _db.getAll('organizaciya');
-  }
+  Future<List<Map<String, dynamic>>> getOrganizacii() =>
+      _db.getAll('organizaciya');
 }

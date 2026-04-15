@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════
-//  dolznostilist.dart
+//  Список справочника Должности
 // ════════════════════════════════════════════════════════════════
 import 'package:flutter/material.dart';
 import 'package:zp/db/database.dart';
@@ -75,6 +75,17 @@ class _DolznostiListState extends State<DolznostiList> {
     }
   }
 
+  String _oplatyLabel(Map<String, dynamic> item) {
+    final isOklad = (item['isOklad'] as int? ?? 1) == 1;
+    if (isOklad) {
+      final oklad = (item['oklad'] as num?)?.toDouble() ?? 0.0;
+      return 'Оклад: ${oklad.toStringAsFixed(0)} ₽/мес';
+    } else {
+      final stavka = (item['chasovayaStavka'] as num?)?.toDouble() ?? 0.0;
+      return 'Часовая ставка: ${stavka.toStringAsFixed(2)} ₽/ч';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -111,8 +122,7 @@ class _DolznostiListState extends State<DolznostiList> {
                     ),
                     title: Text(item['nazvanie']?.toString() ?? '—'),
                     subtitle: Text(
-                      '${item['podrazNazvanie'] ?? '—'} · '
-                      'Оклад: ${item['okladMin']}–${item['okladMax']} ₽',
+                      '${item['podrazNazvanie'] ?? '—'} · ${_oplatyLabel(item)}',
                       style: Theme.of(
                         context,
                       ).textTheme.bodySmall?.copyWith(color: scheme.outline),

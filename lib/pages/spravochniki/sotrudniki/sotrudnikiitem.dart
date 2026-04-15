@@ -7,7 +7,8 @@ import 'package:zp/pages/spravochniki/spravochniki_shared.dart';
 import 'package:zp/pages/spravochniki/dolznosti/dolznostiitemgetfromlist.dart';
 import 'package:zp/pages/spravochniki/podrazdelenia/podrazdeleniaitemgetfromlist.dart';
 import 'package:zp/pages/spravochniki/uslTruda/uslTrudaitemgetfromlist.dart';
-import 'package:zp/pages/documents/doc_generation_dialog.dart';
+import 'package:zp/core/widgets/item_action_bar.dart';
+import 'package:zp/pages/spravochniki/sotrudniki/td_generation_dogovor.dart';
 
 class SotrudnikiItem extends StatefulWidget {
   final Map<String, dynamic>? item;
@@ -56,7 +57,7 @@ class _SotrudnikiItemState extends State<SotrudnikiItem> {
 
   int _dolzhnostId = 0;
   int _podrazdelenieId = 0;
-  int _uslTrudaId = 0; // ← исправление: поле было, но не сохранялось
+  int _uslTrudaId = 0;
   int _stavka = 1;
 
   // ── Маски ─────────────────────────────────────────────────────
@@ -337,7 +338,7 @@ class _SotrudnikiItemState extends State<SotrudnikiItem> {
     );
     if (result != null) {
       setState(() {
-        _uslTrudaId = result['id'] as int; // ← ключевое исправление
+        _uslTrudaId = result['id'] as int;
         _uslTrudaNazvanie.text = result['nazvanie']?.toString() ?? '';
       });
     }
@@ -347,9 +348,7 @@ class _SotrudnikiItemState extends State<SotrudnikiItem> {
     if (!_isEdit) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Сначала сохраните сотрудника, затем генерируйте документы',
-          ),
+          content: Text('Сначала сохраните сотрудника'),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -358,7 +357,7 @@ class _SotrudnikiItemState extends State<SotrudnikiItem> {
     await showDialog(
       context: context,
       builder: (_) =>
-          DocGenerationDialog(sotrudnikId: widget.item!['id'] as int),
+          TdGenerationDogovor(sotrudnikId: widget.item!['id'] as int),
     );
   }
 
@@ -392,7 +391,7 @@ class _SotrudnikiItemState extends State<SotrudnikiItem> {
       'dateUvolneniya': _dateUvolneniya.text.trim(),
       'dolzhnostId': _dolzhnostId,
       'podrazdelenieId': _podrazdelenieId,
-      'uslTrudaId': _uslTrudaId, // ← сохраняется в БД
+      'uslTrudaId': _uslTrudaId,
       'stavka': _stavka,
     };
     if (_isEdit) {
@@ -473,36 +472,11 @@ class _SotrudnikiItemState extends State<SotrudnikiItem> {
         backgroundColor: scheme.surface,
         surfaceTintColor: scheme.surfaceTint,
         title: Text(_isEdit ? 'Редактировать сотрудника' : 'Новый сотрудник'),
-        actions: [
-          if (_isEdit)
-            IconButton(
-              icon: const Icon(Icons.picture_as_pdf_outlined),
-              tooltip: 'Генерация трудового договора (PDF)',
-              onPressed: _openDocGenDialog,
-            ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Отмена'),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: FilledButton(
-              onPressed: _isSaving ? null : _save,
-              child: _isSaving
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Сохранить'),
-            ),
-          ),
-        ],
       ),
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
           children: [
             // ── ФИО ──────────────────────────────────────────────
             buildSectionHeader(context, 'ФИО'),
@@ -734,6 +708,15 @@ class _SotrudnikiItemState extends State<SotrudnikiItem> {
             const SizedBox(height: 32),
           ],
         ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: ItemActionBar(
+        isSaving: _isSaving,
+        onCancel: () => Navigator.pop(context),
+        onSave: _save,
+        onExtra: _isEdit ? _openDocGenDialog : null,
+        extraIcon: Icons.picture_as_pdf_outlined,
+        extraLabel: 'Договор',
       ),
     );
   }

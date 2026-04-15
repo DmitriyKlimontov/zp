@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:zp/db/database.dart';
 import 'package:zp/pages/spravochniki/spravochniki_shared.dart';
 import 'package:zp/pages/spravochniki/sotrudniki/sotrudnikiitemgetfromlist.dart';
+import 'package:zp/core/widgets/item_action_bar.dart';
 
 class RaschetlistokItem extends StatefulWidget {
   final Map<String, dynamic>? item;
@@ -15,7 +17,6 @@ class _RaschetlistokItemState extends State<RaschetlistokItem> {
   final _db = DatabaseHelper();
   bool _isSaving = false;
 
-  // Служебные
   late final TextEditingController _sotrudnikFio;
   late final TextEditingController _dateFomirovaniya;
   late final TextEditingController _periodLabel;
@@ -24,7 +25,6 @@ class _RaschetlistokItemState extends State<RaschetlistokItem> {
   late final TextEditingController _dolzhnost;
   late final TextEditingController _podrazdelenie;
   late final TextEditingController _tarifnayaStavka;
-  // Начислено
   late final TextEditingController _oklad;
   late final TextEditingController _premiya;
   late final TextEditingController _nadbavki;
@@ -33,7 +33,6 @@ class _RaschetlistokItemState extends State<RaschetlistokItem> {
   late final TextEditingController _materialPomosh;
   late final TextEditingController _inyeNachisleniya;
   late final TextEditingController _itogoNachisleno;
-  // Удержано
   late final TextEditingController _ndfl;
   late final TextEditingController _pfr;
   late final TextEditingController _foms;
@@ -41,18 +40,37 @@ class _RaschetlistokItemState extends State<RaschetlistokItem> {
   late final TextEditingController _alimenty;
   late final TextEditingController _inyeUderzhaniya;
   late final TextEditingController _itogoUderzhano;
-  // Выплаты
   late final TextEditingController _avansVyplachenRanee;
   late final TextEditingController _kVyplate;
   late final TextEditingController _faktVyplaceno;
   late final TextEditingController _dolg;
   late final TextEditingController _dateVydachi;
 
+  // Маска даты формирования и выдачи
+  final _maskDate1 = MaskTextInputFormatter(
+    mask: '##.##.####',
+    filter: {'#': RegExp(r'[0-9]')},
+    type: MaskAutoCompletionType.lazy,
+  );
+  final _maskDate2 = MaskTextInputFormatter(
+    mask: '##.##.####',
+    filter: {'#': RegExp(r'[0-9]')},
+    type: MaskAutoCompletionType.lazy,
+  );
+
   int _sotrudnikId = 0;
   int _zarplataMesyacId = 0;
   bool _vydanSotrudniku = false;
 
   bool get _isEdit => widget.item != null;
+
+  void _syncMask(MaskTextInputFormatter m, String v) {
+    if (v.isEmpty) return;
+    m.formatEditUpdate(
+      TextEditingValue.empty,
+      TextEditingValue(text: v.replaceAll('.', '')),
+    );
+  }
 
   @override
   void initState() {
@@ -117,6 +135,8 @@ class _RaschetlistokItemState extends State<RaschetlistokItem> {
     _sotrudnikId = d?['sotrudnikId'] as int? ?? 0;
     _zarplataMesyacId = d?['zarplataMesyacId'] as int? ?? 0;
     _vydanSotrudniku = (d?['vydanSotrudniku'] as int? ?? 0) == 1;
+    _syncMask(_maskDate1, _dateFomirovaniya.text);
+    _syncMask(_maskDate2, _dateVydachi.text);
   }
 
   @override
@@ -156,19 +176,6 @@ class _RaschetlistokItemState extends State<RaschetlistokItem> {
     super.dispose();
   }
 
-  Future<void> _pickDate(TextEditingController ctrl) async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-    );
-    if (date != null) {
-      ctrl.text =
-          '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
-    }
-  }
-
   Future<void> _pickSotrudnik() async {
     final result = await Navigator.push<Map<String, dynamic>>(
       context,
@@ -183,6 +190,11 @@ class _RaschetlistokItemState extends State<RaschetlistokItem> {
         _podrazdelenie.text = result['podrazNazvanie']?.toString() ?? '';
       });
     }
+  }
+
+  // TODO: будет реализовано позже — генерация расчётного листка
+  void _openDocGenDialog() {
+    showSnack(context, 'Генерация расчётного листка — в разработке');
   }
 
   Widget _rublField(TextEditingController ctrl, String label) => buildTextField(
@@ -247,8 +259,28 @@ class _RaschetlistokItemState extends State<RaschetlistokItem> {
           isError: true,
         );
     }
-    setState(() => _isSaving = false);
+    if (mounted) setState(() => _isSaving = false);
   }
+
+  Widget _dateField(
+    TextEditingController ctrl,
+    MaskTextInputFormatter mask,
+    String label,
+  ) => Padding(
+    padding: const EdgeInsets.only(bottom: 16),
+    child: TextFormField(
+      controller: ctrl,
+      inputFormatters: [mask],
+      keyboardType: TextInputType.number,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: 'ДДММГГГГ',
+        helperText: 'Вводите только цифры',
+        border: const OutlineInputBorder(),
+        suffixIcon: const Icon(Icons.calendar_today_outlined, size: 18),
+      ),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -261,30 +293,21 @@ class _RaschetlistokItemState extends State<RaschetlistokItem> {
         title: Text(
           _isEdit ? 'Редактировать листок' : 'Новый расчётный листок',
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Отмена'),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: FilledButton(
-              onPressed: _isSaving ? null : _save,
-              child: _isSaving
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Сохранить'),
-            ),
-          ),
-        ],
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: ItemActionBar(
+        isSaving: _isSaving,
+        onCancel: () => Navigator.pop(context),
+        onSave: _save,
+        // TODO: onExtra подключится когда будет готова генерация расчётного листка
+        //onExtra: _isEdit ? _openDocGenDialog : null,
+        //extraIcon: Icons.picture_as_pdf_outlined,
+        //extraLabel: 'Печать',
       ),
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
           children: [
             buildSectionHeader(context, 'Сотрудник'),
             buildTextField(
@@ -329,14 +352,7 @@ class _RaschetlistokItemState extends State<RaschetlistokItem> {
               label: 'Месяц (1-12)',
               keyboardType: TextInputType.number,
             ),
-            buildTextField(
-              context: context,
-              controller: _dateFomirovaniya,
-              label: 'Дата формирования',
-              readOnly: true,
-              onTap: () => _pickDate(_dateFomirovaniya),
-              suffixIcon: const Icon(Icons.calendar_today_outlined, size: 18),
-            ),
+            _dateField(_dateFomirovaniya, _maskDate1, 'Дата формирования'),
 
             buildSectionHeader(context, 'Начислено'),
             _rublField(_oklad, 'Оклад'),
@@ -369,15 +385,7 @@ class _RaschetlistokItemState extends State<RaschetlistokItem> {
               value: _vydanSotrudniku,
               onChanged: (v) => setState(() => _vydanSotrudniku = v),
             ),
-            buildTextField(
-              context: context,
-              controller: _dateVydachi,
-              label: 'Дата выдачи',
-              readOnly: true,
-              onTap: () => _pickDate(_dateVydachi),
-              suffixIcon: const Icon(Icons.calendar_today_outlined, size: 18),
-            ),
-            const SizedBox(height: 32),
+            _dateField(_dateVydachi, _maskDate2, 'Дата выдачи'),
           ],
         ),
       ),

@@ -5,6 +5,7 @@ import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:zp/db/database.dart';
 import 'package:zp/pages/spravochniki/spravochniki_shared.dart';
 import 'package:zp/pages/spravochniki/sotrudniki/sotrudnikiitemgetfromlist.dart';
+import 'package:zp/core/widgets/item_action_bar.dart';
 
 class AvansItem extends StatefulWidget {
   final Map<String, dynamic>? item;
@@ -18,7 +19,6 @@ class _AvansItemState extends State<AvansItem> {
   final _db = DatabaseHelper();
   bool _isSaving = false;
 
-  // ── Контроллеры ──────────────────────────────────────────────
   late final TextEditingController _periodMesyac;
   late final TextEditingController _dateVyplaty;
   late final TextEditingController _summaAvansa;
@@ -27,66 +27,66 @@ class _AvansItemState extends State<AvansItem> {
   late final TextEditingController _primechanie;
   late final TextEditingController _sotrudnikFio;
 
-  // ── Маски ────────────────────────────────────────────────────
-  // Пользователь вводит только цифры: MMYYYY → отображается MM.YYYY
   final _periodMask = MaskTextInputFormatter(
     mask: '##.####',
     filter: {'#': RegExp(r'[0-9]')},
     type: MaskAutoCompletionType.lazy,
   );
-
-  // Пользователь вводит только цифры: DDMMYYYY → отображается DD.MM.YYYY
   final _dateMask = MaskTextInputFormatter(
     mask: '##.##.####',
     filter: {'#': RegExp(r'[0-9]')},
     type: MaskAutoCompletionType.lazy,
   );
 
-  // ── Данные сотрудника ────────────────────────────────────────
   int _sotrudnikId = 0;
-  double _okladMin = 0.0; // минимальный оклад из таблицы dolzhnosti
-
-  // ── Флаги пересчёта ──────────────────────────────────────────
-  bool _updatingFromProcent = false; // guard против бесконечного цикла
-  bool _updatingFromSumma = false;
-
-  // ── Статус / способ ─────────────────────────────────────────
+  double _okladMin = 0.0;
   String _statusVyplaty = 'nacisleno';
   String _sposobVyplaty = 'bank';
 
+  bool _updatingFromProcent = false;
+  bool _updatingFromSumma = false;
+
   bool get _isEdit => widget.item != null;
 
-  // ─────────────────────────────────────────────────────────────
-  // initState
-  // ─────────────────────────────────────────────────────────────
+  void _syncMask(MaskTextInputFormatter mask, String value) {
+    if (value.isEmpty) return;
+    mask.formatEditUpdate(
+      TextEditingValue.empty,
+      TextEditingValue(text: value.replaceAll('.', '')),
+    );
+  }
+
+  String? _validateDate(String? v) {
+    if (v == null || v.trim().isEmpty) return null;
+    try {
+      DateFormat('dd.MM.yyyy').parseStrict(v.trim());
+      return null;
+    } catch (_) {
+      return 'Формат: ДД.ММ.ГГГГ';
+    }
+  }
+
+  String? _validatePeriod(String? v) {
+    if (v == null || v.trim().isEmpty) return 'Обязательное поле';
+    final p = v.trim().split('.');
+    if (p.length != 2) return 'Формат: ММ.ГГГГ';
+    final m = int.tryParse(p[0]) ?? 0;
+    final y = int.tryParse(p[1]) ?? 0;
+    if (m < 1 || m > 12) return 'Месяц от 01 до 12';
+    if (y < 2000 || y > 2100) return 'Год от 2000 до 2100';
+    return null;
+  }
+
   @override
   void initState() {
     super.initState();
     final d = widget.item;
-
-    // Период: в БД хранится как «MM.YYYY», маска вставит разделитель сама
     _periodMesyac = TextEditingController(
       text: d?['periodMesyac']?.toString() ?? '',
     );
-    // Синхронизируем позицию маски с уже сохранённым значением
-    if (_periodMesyac.text.isNotEmpty) {
-      _periodMask.formatEditUpdate(
-        TextEditingValue.empty,
-        TextEditingValue(text: _periodMesyac.text.replaceAll('.', '')),
-      );
-    }
-
-    // Дата: в БД «dd.MM.yyyy»
     _dateVyplaty = TextEditingController(
       text: d?['dateVyplaty']?.toString() ?? '',
     );
-    if (_dateVyplaty.text.isNotEmpty) {
-      _dateMask.formatEditUpdate(
-        TextEditingValue.empty,
-        TextEditingValue(text: _dateVyplaty.text.replaceAll('.', '')),
-      );
-    }
-
     _summaAvansa = TextEditingController(
       text: d?['summaAvansa']?.toString() ?? '',
     );
@@ -100,19 +100,14 @@ class _AvansItemState extends State<AvansItem> {
       text: d?['primechanie']?.toString() ?? '',
     );
     _sotrudnikFio = TextEditingController(text: d?['fio']?.toString() ?? '');
-
     _sotrudnikId = d?['sotrudnikId'] as int? ?? 0;
     _statusVyplaty = d?['statusVyplaty']?.toString() ?? 'nacisleno';
     _sposobVyplaty = d?['sposobVyplaty']?.toString() ?? 'bank';
-
-    // Слушатели для взаимного пересчёта суммы и процента
+    _syncMask(_periodMask, _periodMesyac.text);
+    _syncMask(_dateMask, _dateVyplaty.text);
     _summaAvansa.addListener(_onSummaChanged);
     _procentOtOklada.addListener(_onProcentChanged);
-
-    // Если редактируем и сотрудник уже выбран — загружаем оклад
-    if (_sotrudnikId > 0) {
-      _loadOkladBySotrudnikId(_sotrudnikId);
-    }
+    if (_sotrudnikId > 0) _loadOkladBySotrudnikId(_sotrudnikId);
   }
 
   @override
@@ -127,42 +122,31 @@ class _AvansItemState extends State<AvansItem> {
       _platezhDocument,
       _primechanie,
       _sotrudnikFio,
-    ]) {
+    ])
       c.dispose();
-    }
     super.dispose();
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // Загрузка оклада сотрудника из БД
-  // ─────────────────────────────────────────────────────────────
-  Future<void> _loadOkladBySotrudnikId(int sotrudnikId) async {
+  Future<void> _loadOkladBySotrudnikId(int id) async {
     final db = await _db.database;
     final rows = await db.rawQuery(
       '''
-      SELECT d.okladMin
-      FROM sotrudniki s
+      SELECT d.oklad FROM sotrudniki s
       LEFT JOIN dolzhnosti d ON d.id = s.dolzhnostId
-      WHERE s.id = ?
-      LIMIT 1
+      WHERE s.id = ? LIMIT 1
     ''',
-      [sotrudnikId],
+      [id],
     );
-
     if (rows.isNotEmpty && mounted) {
-      setState(() {
-        _okladMin = (rows.first['okladMin'] as num?)?.toDouble() ?? 0.0;
-      });
-      // Если процент уже введён — пересчитаем сумму
+      setState(
+        () => _okladMin = (rows.first['oklad'] as num?)?.toDouble() ?? 0.0,
+      );
       _recalcSummaFromProcent();
     }
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // Пересчёт: пользователь изменил ПРОЦЕНТ → обновляем СУММУ
-  // ─────────────────────────────────────────────────────────────
   void _onProcentChanged() {
-    if (_updatingFromSumma) return; // защита от петли
+    if (_updatingFromSumma) return;
     _updatingFromProcent = true;
     _recalcSummaFromProcent();
     _updatingFromProcent = false;
@@ -170,24 +154,20 @@ class _AvansItemState extends State<AvansItem> {
 
   void _recalcSummaFromProcent() {
     if (_okladMin <= 0) return;
-    final procent = double.tryParse(
+    final p = double.tryParse(
       _procentOtOklada.text.trim().replaceAll(',', '.'),
     );
-    if (procent == null) return;
-    final summa = (_okladMin * procent / 100).roundToDouble();
-    final summaStr = summa.toStringAsFixed(0);
-    if (_summaAvansa.text != summaStr) {
+    if (p == null) return;
+    final s = (_okladMin * p / 100).roundToDouble().toStringAsFixed(0);
+    if (_summaAvansa.text != s) {
       _updatingFromProcent = true;
-      _summaAvansa.text = summaStr;
+      _summaAvansa.text = s;
       _updatingFromProcent = false;
     }
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // Пересчёт: пользователь изменил СУММУ → обновляем ПРОЦЕНТ
-  // ─────────────────────────────────────────────────────────────
   void _onSummaChanged() {
-    if (_updatingFromProcent) return; // защита от петли
+    if (_updatingFromProcent) return;
     _updatingFromSumma = true;
     _recalcProcentFromSumma();
     _updatingFromSumma = false;
@@ -195,25 +175,19 @@ class _AvansItemState extends State<AvansItem> {
 
   void _recalcProcentFromSumma() {
     if (_okladMin <= 0) return;
-    final summa = double.tryParse(
-      _summaAvansa.text.trim().replaceAll(',', '.'),
-    );
-    if (summa == null) return;
-    final procent = (summa / _okladMin * 100);
-    // Показываем с 2 знаками, убираем лишние нули
-    final procentStr = procent % 1 == 0
-        ? procent.toStringAsFixed(0)
-        : procent.toStringAsFixed(2).replaceAll(RegExp(r'0+$'), '');
-    if (_procentOtOklada.text != procentStr) {
+    final s = double.tryParse(_summaAvansa.text.trim().replaceAll(',', '.'));
+    if (s == null) return;
+    final p = (s / _okladMin * 100);
+    final ps = p % 1 == 0
+        ? p.toStringAsFixed(0)
+        : p.toStringAsFixed(2).replaceAll(RegExp(r'0+$'), '');
+    if (_procentOtOklada.text != ps) {
       _updatingFromSumma = true;
-      _procentOtOklada.text = procentStr;
+      _procentOtOklada.text = ps;
       _updatingFromSumma = false;
     }
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // Выбор сотрудника
-  // ─────────────────────────────────────────────────────────────
   Future<void> _pickSotrudnik() async {
     final result = await Navigator.push<Map<String, dynamic>>(
       context,
@@ -224,63 +198,19 @@ class _AvansItemState extends State<AvansItem> {
         _sotrudnikId = result['id'] as int;
         _sotrudnikFio.text =
             '${result['familiya']} ${result['name']} ${result['otchestvo']}';
-        _okladMin = 0.0; // сбросим пока не загрузится оклад
+        _okladMin = 0.0;
       });
       await _loadOkladBySotrudnikId(_sotrudnikId);
     }
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // Валидация и форматирование периода перед сохранением
-  // ─────────────────────────────────────────────────────────────
-  // Пользователь вводит: «032026» → маска показывает «03.2026»
-  // В БД сохраняем: «03.2026»
-  String _normalizePeriod(String raw) {
-    // raw уже содержит точку от маски: «03.2026» или «3.2026»
-    return raw.trim();
-  }
-
-  // ─────────────────────────────────────────────────────────────
-  // Валидация и форматирование даты перед сохранением
-  // ─────────────────────────────────────────────────────────────
-  // Пользователь вводит: «25042026» → маска: «25.04.2026»
-  // В БД сохраняем: «25.04.2026»
-  String _normalizeDate(String raw) {
-    return raw.trim();
-  }
-
-  String? _validateDate(String? value) {
-    if (value == null || value.trim().isEmpty) return null; // необязательное
-    try {
-      DateFormat('dd.MM.yyyy').parseStrict(value.trim());
-      return null;
-    } catch (_) {
-      return 'Введите дату в формате ДД.ММ.ГГГГ';
-    }
-  }
-
-  String? _validatePeriod(String? value) {
-    if (value == null || value.trim().isEmpty) return 'Обязательное поле';
-    final parts = value.trim().split('.');
-    if (parts.length != 2) return 'Формат: ММ.ГГГГ';
-    final month = int.tryParse(parts[0]) ?? 0;
-    final year = int.tryParse(parts[1]) ?? 0;
-    if (month < 1 || month > 12) return 'Месяц от 01 до 12';
-    if (year < 2000 || year > 2100) return 'Год от 2000 до 2100';
-    return null;
-  }
-
-  // ─────────────────────────────────────────────────────────────
-  // Сохранение
-  // ─────────────────────────────────────────────────────────────
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
-
     final data = {
       'sotrudnikId': _sotrudnikId,
-      'periodMesyac': _normalizePeriod(_periodMesyac.text),
-      'dateVyplaty': _normalizeDate(_dateVyplaty.text),
+      'periodMesyac': _periodMesyac.text.trim(),
+      'dateVyplaty': _dateVyplaty.text.trim(),
       'summaAvansa': double.tryParse(_summaAvansa.text.trim()) ?? 0.0,
       'procentOtOklada': double.tryParse(_procentOtOklada.text.trim()) ?? 0.0,
       'statusVyplaty': _statusVyplaty,
@@ -288,29 +218,22 @@ class _AvansItemState extends State<AvansItem> {
       'platezhDocument': _platezhDocument.text.trim(),
       'primechanie': _primechanie.text.trim(),
     };
-
     if (_isEdit) {
       await _db.update('avans', data, widget.item!['id'] as int);
     } else {
       await _db.insert('avans', data);
     }
-
     if (mounted) {
       showSnack(context, _isEdit ? 'Изменения сохранены' : 'Аванс добавлен');
       Navigator.pop(context);
     }
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // Build
-  // ─────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-
-    // Подсказка об окладе рядом с суммой
     final okladHint = _okladMin > 0
-        ? 'Оклад (мин.): ${_okladMin.toStringAsFixed(0)} ₽'
+        ? 'Оклад: ${_okladMin.toStringAsFixed(0)} ₽'
         : 'Выберите сотрудника для расчёта';
 
     return Scaffold(
@@ -319,32 +242,18 @@ class _AvansItemState extends State<AvansItem> {
         backgroundColor: scheme.surface,
         surfaceTintColor: scheme.surfaceTint,
         title: Text(_isEdit ? 'Редактировать аванс' : 'Новый аванс'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Отмена'),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: FilledButton(
-              onPressed: _isSaving ? null : _save,
-              child: _isSaving
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Сохранить'),
-            ),
-          ),
-        ],
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: ItemActionBar(
+        isSaving: _isSaving,
+        onCancel: () => Navigator.pop(context),
+        onSave: _save,
       ),
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
           children: [
-            // ── Сотрудник ──────────────────────────────────────
             buildSectionHeader(context, 'Сотрудник'),
             buildTextField(
               context: context,
@@ -357,7 +266,6 @@ class _AvansItemState extends State<AvansItem> {
                   _sotrudnikId == 0 ? 'Выберите сотрудника' : null,
             ),
 
-            // ── Период ─────────────────────────────────────────
             buildSectionHeader(context, 'Период и дата'),
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
@@ -368,14 +276,12 @@ class _AvansItemState extends State<AvansItem> {
                 decoration: const InputDecoration(
                   labelText: 'Период (ММ.ГГГГ)',
                   hintText: 'ММГГГГ',
-                  helperText: 'Вводите только цифры, например: 032026',
+                  helperText: 'Вводите только цифры',
                   border: OutlineInputBorder(),
                 ),
                 validator: _validatePeriod,
               ),
             ),
-
-            // ── Дата выплаты ────────────────────────────────────
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: TextFormField(
@@ -385,7 +291,7 @@ class _AvansItemState extends State<AvansItem> {
                 decoration: const InputDecoration(
                   labelText: 'Дата выплаты',
                   hintText: 'ДДММГГГГ',
-                  helperText: 'Вводите только цифры, например: 25042026',
+                  helperText: 'Вводите только цифры',
                   border: OutlineInputBorder(),
                   suffixIcon: Icon(Icons.calendar_today_outlined, size: 18),
                 ),
@@ -393,16 +299,13 @@ class _AvansItemState extends State<AvansItem> {
               ),
             ),
 
-            // ── Сумма и процент ────────────────────────────────
             buildSectionHeader(context, 'Сумма'),
-
-            // Подсказка об окладе
             if (_sotrudnikId > 0)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline, size: 16, color: scheme.primary),
+                    Icon(Icons.info_outline, size: 14, color: scheme.primary),
                     const SizedBox(width: 6),
                     Text(
                       okladHint,
@@ -413,8 +316,6 @@ class _AvansItemState extends State<AvansItem> {
                   ],
                 ),
               ),
-
-            // Сумма аванса
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: TextFormField(
@@ -429,15 +330,13 @@ class _AvansItemState extends State<AvansItem> {
                   labelText: 'Сумма аванса, ₽',
                   border: const OutlineInputBorder(),
                   helperText: _okladMin > 0
-                      ? 'Введите сумму — процент рассчитается автоматически'
+                      ? 'Введите сумму — % рассчитается автоматически'
                       : null,
                 ),
                 validator: (v) =>
                     v == null || v.trim().isEmpty ? 'Обязательное поле' : null,
               ),
             ),
-
-            // Процент от оклада
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: TextFormField(
@@ -458,7 +357,6 @@ class _AvansItemState extends State<AvansItem> {
               ),
             ),
 
-            // ── Статус ─────────────────────────────────────────
             buildSectionHeader(context, 'Статус'),
             SegmentedButton<String>(
               segments: const [
@@ -471,7 +369,6 @@ class _AvansItemState extends State<AvansItem> {
                   setState(() => _statusVyplaty = s.first),
             ),
 
-            // ── Способ выплаты ─────────────────────────────────
             buildSectionHeader(context, 'Способ выплаты'),
             SegmentedButton<String>(
               segments: const [
@@ -483,7 +380,6 @@ class _AvansItemState extends State<AvansItem> {
                   setState(() => _sposobVyplaty = s.first),
             ),
 
-            // ── Документ и примечание ──────────────────────────
             buildSectionHeader(context, 'Документ и примечание'),
             buildTextField(
               context: context,
@@ -496,8 +392,6 @@ class _AvansItemState extends State<AvansItem> {
               label: 'Примечание',
               maxLines: 3,
             ),
-
-            const SizedBox(height: 32),
           ],
         ),
       ),

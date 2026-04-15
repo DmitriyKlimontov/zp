@@ -230,6 +230,12 @@ class UslTruda {
   bool normirovannoye; // true = нормируемое, false = ненормируемое
   int chasovVechernih; // Количество вечерних часов в смене
   int chasovNochnykh; // Количество ночных часов в смене
+  int rayonnyKoefficient;
+  int nadbavkaVechernye; // Надбавка за вечернее время, % (целые)
+  int nadbavkaNochnye; // Надбавка за ночное время, % (целые)
+  int severnyKoefficient; // Северный коэффициент, % (целые)
+  int severnaaNadbavka; // Процентная надбавка к зарплате (северная), %
+  bool estSevernyeNadbavki; // Применяются ли северные надбавки
   String primechanie; // Примечание
 
   UslTruda({
@@ -245,6 +251,12 @@ class UslTruda {
     this.normirovannoye = true,
     this.chasovVechernih = 0,
     this.chasovNochnykh = 0,
+    this.rayonnyKoefficient = 0,
+    this.nadbavkaVechernye = 0,
+    this.nadbavkaNochnye = 20, // по умолчанию 20% — минимум по ТК РФ
+    this.severnyKoefficient = 0,
+    this.severnaaNadbavka = 0,
+    this.estSevernyeNadbavki = false,
     this.primechanie = '',
   });
 
@@ -262,6 +274,12 @@ class UslTruda {
       'normirovannoye': normirovannoye ? 1 : 0,
       'chasovVechernih': chasovVechernih,
       'chasovNochnykh': chasovNochnykh,
+      'rayonnyKoefficient': rayonnyKoefficient,
+      'nadbavkaVechernye': nadbavkaVechernye,
+      'nadbavkaNochnye': nadbavkaNochnye,
+      'severnyKoefficient': severnyKoefficient,
+      'severnaaNadbavka': severnaaNadbavka,
+      'estSevernyeNadbavki': estSevernyeNadbavki ? 1 : 0,
       'primechanie': primechanie,
     };
   }
@@ -280,6 +298,12 @@ class UslTruda {
       normirovannoye: (map['normirovannoye'] as int? ?? 1) == 1,
       chasovVechernih: map['chasovVechernih'] as int? ?? 0,
       chasovNochnykh: map['chasovNochnykh'] as int? ?? 0,
+      rayonnyKoefficient: map['rayonnyKoefficient'] as int? ?? 0,
+      nadbavkaVechernye: map['nadbavkaVechernye'] as int? ?? 0,
+      nadbavkaNochnye: map['nadbavkaNochnye'] as int? ?? 20,
+      severnyKoefficient: map['severnyKoefficient'] as int? ?? 0,
+      severnaaNadbavka: map['severnaaNadbavka'] as int? ?? 0,
+      estSevernyeNadbavki: (map['estSevernyeNadbavki'] as int? ?? 0) == 1,
       primechanie: map['primechanie']?.toString() ?? '',
     );
   }
@@ -297,6 +321,12 @@ class UslTruda {
     normirovannoye: true,
     chasovVechernih: 0,
     chasovNochnykh: 0,
+    rayonnyKoefficient: 0,
+    nadbavkaVechernye: 0,
+    nadbavkaNochnye: 20,
+    severnyKoefficient: 0,
+    severnaaNadbavka: 0,
+    estSevernyeNadbavki: false,
     primechanie: '',
   );
 
@@ -313,6 +343,12 @@ class UslTruda {
     bool? normirovannoye,
     int? chasovVechernih,
     int? chasovNochnykh,
+    int? rayonnyKoefficient,
+    int? nadbavkaVechernye,
+    int? nadbavkaNochnye,
+    int? severnyKoefficient,
+    int? severnaaNadbavka,
+    bool? estSevernyeNadbavki,
     String? primechanie,
   }) {
     return UslTruda(
@@ -328,6 +364,12 @@ class UslTruda {
       normirovannoye: normirovannoye ?? this.normirovannoye,
       chasovVechernih: chasovVechernih ?? this.chasovVechernih,
       chasovNochnykh: chasovNochnykh ?? this.chasovNochnykh,
+      rayonnyKoefficient: rayonnyKoefficient ?? this.rayonnyKoefficient,
+      nadbavkaVechernye: nadbavkaVechernye ?? this.nadbavkaVechernye,
+      nadbavkaNochnye: nadbavkaNochnye ?? this.nadbavkaNochnye,
+      severnyKoefficient: severnyKoefficient ?? this.severnyKoefficient,
+      severnaaNadbavka: severnaaNadbavka ?? this.severnaaNadbavka,
+      estSevernyeNadbavki: estSevernyeNadbavki ?? this.estSevernyeNadbavki,
       primechanie: primechanie ?? this.primechanie,
     );
   }
@@ -338,16 +380,18 @@ class Dolzhnosti {
   int? id;
   String nazvanie; // Название должности
   String kod; // Код должности
-  double okladMin; // Минимальный оклад
-  double okladMax; // Максимальный оклад
+  double oklad; // // Оклад (месячная фиксированная ставка), руб.
+  double chasovayaStavka; // Часовая ставка (при почасовой оплате), руб.
+  bool isOklad; // true = оклад, false = часовая ставка
   int podrazdelenieId;
 
   Dolzhnosti({
     this.id,
     this.nazvanie = '',
     this.kod = '',
-    this.okladMin = 0.0,
-    this.okladMax = 0.0,
+    this.oklad = 0.0,
+    this.chasovayaStavka = 0.0,
+    this.isOklad = true,
     this.podrazdelenieId = 0,
   });
 
@@ -355,8 +399,9 @@ class Dolzhnosti {
     'id': id ?? 0,
     'nazvanie': nazvanie,
     'kod': kod,
-    'okladMin': okladMin,
-    'okladMax': okladMax,
+    'oklad': oklad,
+    'chasovayaStavka': chasovayaStavka,
+    'isOklad': isOklad ? 1 : 0,
     'podrazdelenieId': podrazdelenieId,
   };
 
@@ -364,8 +409,9 @@ class Dolzhnosti {
     id: map['id'],
     nazvanie: map['nazvanie']?.toString() ?? '',
     kod: map['kod']?.toString() ?? '',
-    okladMin: (map['okladMin'] as num?)?.toDouble() ?? 0.0,
-    okladMax: (map['okladMax'] as num?)?.toDouble() ?? 0.0,
+    oklad: (map['oklad'] as num?)?.toDouble() ?? 0.0,
+    chasovayaStavka: (map['chasovayaStavka'] as num?)?.toDouble() ?? 0.0,
+    isOklad: (map['isOklad'] as int? ?? 1) == 1,
     podrazdelenieId: map['podrazdelenieId'] as int? ?? 0,
   );
 
@@ -375,15 +421,17 @@ class Dolzhnosti {
     int? id,
     String? nazvanie,
     String? kod,
-    double? okladMin,
-    double? okladMax,
+    double? oklad,
+    double? chasovayaStavka,
+    bool? isOklad,
     int? podrazdelenieId,
   }) => Dolzhnosti(
     id: id ?? this.id,
     nazvanie: nazvanie ?? this.nazvanie,
     kod: kod ?? this.kod,
-    okladMin: okladMin ?? this.okladMin,
-    okladMax: okladMax ?? this.okladMax,
+    oklad: oklad ?? this.oklad,
+    chasovayaStavka: chasovayaStavka ?? this.chasovayaStavka,
+    isOklad: isOklad ?? this.isOklad,
     podrazdelenieId: podrazdelenieId ?? this.podrazdelenieId,
   );
 }
@@ -453,6 +501,7 @@ class Organizaciya {
   String bankKS;
   String bankBIK;
   String bankName;
+  int nalogoviyRezhim;
   String direktorFio; // ФИО директора
   String buhgalterFio; // ФИО главного бухгалтера
 
@@ -473,6 +522,7 @@ class Organizaciya {
     this.bankName = '',
     this.direktorFio = '',
     this.buhgalterFio = '',
+    this.nalogoviyRezhim = 0,
   });
 
   Map<String, dynamic> toMap() => {
@@ -492,6 +542,7 @@ class Organizaciya {
     'bankName': bankName,
     'direktorFio': direktorFio,
     'buhgalterFio': buhgalterFio,
+    'nalogoviyRezhim': nalogoviyRezhim,
   };
 
   factory Organizaciya.fromMap(Map<String, dynamic> map) => Organizaciya(
@@ -511,6 +562,7 @@ class Organizaciya {
     bankName: map['bankName']?.toString() ?? '',
     direktorFio: map['direktorFio']?.toString() ?? '',
     buhgalterFio: map['buhgalterFio']?.toString() ?? '',
+    nalogoviyRezhim: map['nalogoviyRezhim'] as int? ?? 0,
   );
 
   factory Organizaciya.empty() => Organizaciya(id: 0);
@@ -532,6 +584,7 @@ class Organizaciya {
     String? bankName,
     String? direktorFio,
     String? buhgalterFio,
+    int? nalogoviyRezhim,
   }) => Organizaciya(
     id: id ?? this.id,
     nazvanie: nazvanie ?? this.nazvanie,
@@ -549,6 +602,7 @@ class Organizaciya {
     bankName: bankName ?? this.bankName,
     direktorFio: direktorFio ?? this.direktorFio,
     buhgalterFio: buhgalterFio ?? this.buhgalterFio,
+    nalogoviyRezhim: nalogoviyRezhim ?? this.nalogoviyRezhim,
   );
 }
 
@@ -729,11 +783,15 @@ class Tabel {
   String periodMesyac;
   int rabochihDney; // Рабочих дней по норме
   int faktDney; // Фактически отработано дней
-  int faktChasov; // Фактически отработано часов
+  double faktChasov; // Фактически отработано часов
   int otpuskDney; // Дней в отпуске
   int bolnichnyhDney; // Дней на больничном
   int progulDney; // Прогулы
   int komandirovkaDney; // Командировка (дней)
+  double vechernikhChasov; // Часы в вечернее время (18:00–22:00), дробные
+  double nochnykChasov; // Часы в ночное время (22:00–06:00), дробные
+  double sverkhurochnykhChasov; // Сверхурочные часы, дробные
+  double prazdnichikhChasov; // Часы в праздничные и выходные дни, дробные
 
   Tabel({
     this.id,
@@ -741,11 +799,15 @@ class Tabel {
     this.periodMesyac = '',
     this.rabochihDney = 0,
     this.faktDney = 0,
-    this.faktChasov = 0,
+    this.faktChasov = 0.0,
     this.otpuskDney = 0,
     this.bolnichnyhDney = 0,
     this.progulDney = 0,
     this.komandirovkaDney = 0,
+    this.vechernikhChasov = 0.0,
+    this.nochnykChasov = 0.0,
+    this.sverkhurochnykhChasov = 0.0,
+    this.prazdnichikhChasov = 0.0,
   });
 
   Map<String, dynamic> toMap() => {
@@ -755,6 +817,10 @@ class Tabel {
     'rabochihDney': rabochihDney,
     'faktDney': faktDney,
     'faktChasov': faktChasov,
+    'vechernikhChasov': vechernikhChasov,
+    'nochnykChasov': nochnykChasov,
+    'sverkhurochnykhChasov': sverkhurochnykhChasov,
+    'prazdnichikhChasov': prazdnichikhChasov,
     'otpuskDney': otpuskDney,
     'bolnichnyhDney': bolnichnyhDney,
     'progulDney': progulDney,
@@ -767,7 +833,12 @@ class Tabel {
     periodMesyac: map['periodMesyac']?.toString() ?? '',
     rabochihDney: map['rabochihDney'] as int? ?? 0,
     faktDney: map['faktDney'] as int? ?? 0,
-    faktChasov: map['faktChasov'] as int? ?? 0,
+    faktChasov: (map['faktChasov'] as num?)?.toDouble() ?? 0,
+    vechernikhChasov: (map['vechernikhChasov'] as num?)?.toDouble() ?? 0.0,
+    nochnykChasov: (map['nochnykChasov'] as num?)?.toDouble() ?? 0.0,
+    sverkhurochnykhChasov:
+        (map['sverkhurochnykhChasov'] as num?)?.toDouble() ?? 0.0,
+    prazdnichikhChasov: (map['prazdnichikhChasov'] as num?)?.toDouble() ?? 0.0,
     otpuskDney: map['otpuskDney'] as int? ?? 0,
     bolnichnyhDney: map['bolnichnyhDney'] as int? ?? 0,
     progulDney: map['progulDney'] as int? ?? 0,
@@ -782,11 +853,15 @@ class Tabel {
     String? periodMesyac,
     int? rabochihDney,
     int? faktDney,
-    int? faktChasov,
+    double? faktChasov,
     int? otpuskDney,
     int? bolnichnyhDney,
     int? progulDney,
     int? komandirovkaDney,
+    double? vechernikhChasov,
+    double? nochnykChasov,
+    double? sverkhurochnykhChasov,
+    double? prazdnichikhChasov,
   }) => Tabel(
     id: id ?? this.id,
     sotrudnikId: sotrudnikId ?? this.sotrudnikId,
@@ -798,6 +873,10 @@ class Tabel {
     bolnichnyhDney: bolnichnyhDney ?? this.bolnichnyhDney,
     progulDney: progulDney ?? this.progulDney,
     komandirovkaDney: komandirovkaDney ?? this.komandirovkaDney,
+    vechernikhChasov: vechernikhChasov ?? this.vechernikhChasov,
+    nochnykChasov: nochnykChasov ?? this.nochnykChasov,
+    sverkhurochnykhChasov: sverkhurochnykhChasov ?? this.sverkhurochnykhChasov,
+    prazdnichikhChasov: prazdnichikhChasov ?? this.prazdnichikhChasov,
   );
 }
 

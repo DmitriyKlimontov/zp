@@ -1,5 +1,3 @@
-// lib/pages/settings/work_calendar_page.dart
-//
 // Страница редактирования производственного календаря.
 // Открывается из Настроек или из TabeItem.
 // Пользователь может изменить нормы часов для любого месяца/года.
@@ -296,9 +294,7 @@ class _WorkCalendarPageState extends State<WorkCalendarPage>
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  'Нормы часов по производственному календарю РФ. '
-                  'Значения можно изменить если организация работает '
-                  'по отличному от стандартного графику.',
+                  'Нормы часов по производственному календарю РФ. ',
                   style: text.bodySmall?.copyWith(color: scheme.outline),
                 ),
               ),

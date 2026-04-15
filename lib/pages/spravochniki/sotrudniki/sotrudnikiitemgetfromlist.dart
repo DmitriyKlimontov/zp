@@ -24,8 +24,6 @@ class _SotrudnikiItemGetFromListState extends State<SotrudnikiItemGetFromList> {
   Future<void> _load() async {
     setState(() => _isLoading = true);
     final db = await _db.database;
-    // JOIN на uslTruda — чтобы uslTrudaNazvanie был заполнен
-    // при открытии SotrudnikiItem в режиме редактирования
     final data = await db.rawQuery('''
       SELECT s.*,
              d.nazvanie AS dolzhnostNazvanie,

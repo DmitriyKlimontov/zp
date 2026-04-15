@@ -23,8 +23,6 @@ class _SotrudnikiListState extends State<SotrudnikiList> {
   Future<void> _load() async {
     setState(() => _isLoading = true);
     final db = await _db.database;
-    // JOIN на uslTruda — чтобы при открытии редактирования
-    // поле uslTrudaNazvanie было предзаполнено
     final data = await db.rawQuery('''
       SELECT s.*,
              d.nazvanie AS dolzhnostNazvanie,

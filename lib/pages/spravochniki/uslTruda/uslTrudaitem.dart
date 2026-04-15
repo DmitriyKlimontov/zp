@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:zp/db/database.dart';
 import 'package:zp/pages/spravochniki/spravochniki_shared.dart';
+import 'package:zp/core/widgets/item_action_bar.dart';
 
 class UslTrudaItem extends StatefulWidget {
   final Map<String, dynamic>? item;
@@ -14,6 +16,7 @@ class _UslTrudaItemState extends State<UslTrudaItem> {
   final _db = DatabaseHelper();
   bool _isSaving = false;
 
+  // Контроллеры
   late final TextEditingController _nazvanie;
   late final TextEditingController _graficRaboty;
   late final TextEditingController _chasovVSmene;
@@ -23,11 +26,17 @@ class _UslTrudaItemState extends State<UslTrudaItem> {
   late final TextEditingController _prodObedennyhPereryv;
   late final TextEditingController _chasovVechernih;
   late final TextEditingController _chasovNochnykh;
+  late final TextEditingController _rayonnyKoefficient;
+  late final TextEditingController _nadbavkaVechernye;
+  late final TextEditingController _nadbavkaNochnye;
+  late final TextEditingController _severnyKoefficient;
+  late final TextEditingController _severnaaNadbavka;
   late final TextEditingController _primechanie;
 
   String _klassUslTruda = '2';
   bool _normirovannoye = true;
-  bool _estObedPereryv = true; // вспомогательный флаг
+  bool _estObedPereryv = true;
+  bool _estSevernyeNadbavki = false;
 
   bool get _isEdit => widget.item != null;
 
@@ -40,7 +49,6 @@ class _UslTrudaItemState extends State<UslTrudaItem> {
     '3.4',
     '4',
   ];
-
   static const List<String> _klassyLabels = [
     '1 — Оптимальные',
     '2 — Допустимые',
@@ -80,13 +88,31 @@ class _UslTrudaItemState extends State<UslTrudaItem> {
     _chasovNochnykh = TextEditingController(
       text: d?['chasovNochnykh']?.toString() ?? '0',
     );
+    _rayonnyKoefficient = TextEditingController(
+      text: (d?['rayonnyKoefficient'] as int? ?? 0).toString(),
+    );
+    _nadbavkaVechernye = TextEditingController(
+      text: (d?['nadbavkaVechernye'] as int? ?? 0).toString(),
+    );
+    _nadbavkaNochnye = TextEditingController(
+      text: (d?['nadbavkaNochnye'] as int? ?? 20).toString(),
+    );
+    _severnyKoefficient = TextEditingController(
+      text: (d?['severnyKoefficient'] as int? ?? 0).toString(),
+    );
+    _severnaaNadbavka = TextEditingController(
+      text: (d?['severnaaNadbavka'] as int? ?? 0).toString(),
+    );
     _primechanie = TextEditingController(
       text: d?['primechanie']?.toString() ?? '',
     );
+
     _klassUslTruda = d?['klassUslTruda']?.toString() ?? '2';
     _normirovannoye = (d?['normirovannoye'] as int? ?? 1) == 1;
+    _estSevernyeNadbavki = (d?['estSevernyeNadbavki'] as int? ?? 0) == 1;
     final kol = d?['kolObedennyhPereryv'] as int? ?? 1;
     _estObedPereryv = kol > 0;
+
     if (!_klassyOptions.contains(_klassUslTruda)) _klassUslTruda = '2';
   }
 
@@ -102,6 +128,11 @@ class _UslTrudaItemState extends State<UslTrudaItem> {
       _prodObedennyhPereryv,
       _chasovVechernih,
       _chasovNochnykh,
+      _rayonnyKoefficient,
+      _nadbavkaVechernye,
+      _nadbavkaNochnye,
+      _severnyKoefficient,
+      _severnaaNadbavka,
       _primechanie,
     ]) {
       c.dispose();
@@ -110,10 +141,9 @@ class _UslTrudaItemState extends State<UslTrudaItem> {
   }
 
   Future<void> _pickTime(TextEditingController ctrl) async {
-    final initial = TimeOfDay.now();
     final picked = await showTimePicker(
       context: context,
-      initialTime: initial,
+      initialTime: TimeOfDay.now(),
       builder: (ctx, child) => MediaQuery(
         data: MediaQuery.of(ctx).copyWith(alwaysUse24HourFormat: true),
         child: child!,
@@ -121,7 +151,8 @@ class _UslTrudaItemState extends State<UslTrudaItem> {
     );
     if (picked != null) {
       ctrl.text =
-          '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+          '${picked.hour.toString().padLeft(2, '0')}:'
+          '${picked.minute.toString().padLeft(2, '0')}';
     }
   }
 
@@ -148,6 +179,12 @@ class _UslTrudaItemState extends State<UslTrudaItem> {
       'normirovannoye': _normirovannoye ? 1 : 0,
       'chasovVechernih': int.tryParse(_chasovVechernih.text.trim()) ?? 0,
       'chasovNochnykh': int.tryParse(_chasovNochnykh.text.trim()) ?? 0,
+      'rayonnyKoefficient': int.tryParse(_rayonnyKoefficient.text.trim()) ?? 0,
+      'nadbavkaVechernye': int.tryParse(_nadbavkaVechernye.text.trim()) ?? 0,
+      'nadbavkaNochnye': int.tryParse(_nadbavkaNochnye.text.trim()) ?? 20,
+      'severnyKoefficient': int.tryParse(_severnyKoefficient.text.trim()) ?? 0,
+      'severnaaNadbavka': int.tryParse(_severnaaNadbavka.text.trim()) ?? 0,
+      'estSevernyeNadbavki': _estSevernyeNadbavki ? 1 : 0,
       'primechanie': _primechanie.text.trim(),
     };
 
@@ -166,6 +203,36 @@ class _UslTrudaItemState extends State<UslTrudaItem> {
     }
   }
 
+  // Вспомогательный виджет — поле только для целых чисел с суффиксом %
+  Widget _percentField(
+    TextEditingController ctrl,
+    String label, {
+    String? helperText,
+    int defaultVal = 0,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextFormField(
+        controller: ctrl,
+        keyboardType: TextInputType.number,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: '$defaultVal',
+          helperText: helperText,
+          border: const OutlineInputBorder(),
+          suffixText: '%',
+        ),
+        validator: (v) {
+          if (v == null || v.trim().isEmpty) return null;
+          final n = int.tryParse(v.trim());
+          if (n == null || n < 0) return 'Введите целое число ≥ 0';
+          return null;
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -178,31 +245,13 @@ class _UslTrudaItemState extends State<UslTrudaItem> {
         title: Text(
           _isEdit ? 'Редактировать условие труда' : 'Новое условие труда',
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Отмена'),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: FilledButton(
-              onPressed: _isSaving ? null : _save,
-              child: _isSaving
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Сохранить'),
-            ),
-          ),
-        ],
       ),
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
           children: [
+            // ── Основные данные ─────────────────────────────────
             buildSectionHeader(context, 'Основные данные'),
             buildTextField(
               context: context,
@@ -212,6 +261,7 @@ class _UslTrudaItemState extends State<UslTrudaItem> {
                   v == null || v.trim().isEmpty ? 'Обязательное поле' : null,
             ),
 
+            // ── Класс условий труда ─────────────────────────────
             buildSectionHeader(context, 'Класс условий труда'),
             DropdownButtonFormField<String>(
               value: _klassUslTruda,
@@ -230,6 +280,7 @@ class _UslTrudaItemState extends State<UslTrudaItem> {
             ),
             const SizedBox(height: 16),
 
+            // ── График работы ───────────────────────────────────
             buildSectionHeader(context, 'График работы'),
             buildTextField(
               context: context,
@@ -240,6 +291,7 @@ class _UslTrudaItemState extends State<UslTrudaItem> {
                   v == null || v.trim().isEmpty ? 'Обязательное поле' : null,
             ),
 
+            // ── Рабочее время ───────────────────────────────────
             buildSectionHeader(context, 'Рабочее время'),
             buildTextField(
               context: context,
@@ -266,6 +318,7 @@ class _UslTrudaItemState extends State<UslTrudaItem> {
               suffixIcon: const Icon(Icons.access_time_outlined, size: 18),
             ),
 
+            // ── Нормирование ────────────────────────────────────
             buildSectionHeader(context, 'Нормирование'),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
@@ -279,6 +332,7 @@ class _UslTrudaItemState extends State<UslTrudaItem> {
               onChanged: (v) => setState(() => _normirovannoye = v),
             ),
 
+            // ── Обеденные перерывы ──────────────────────────────
             buildSectionHeader(context, 'Обеденные перерывы'),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
@@ -310,6 +364,7 @@ class _UslTrudaItemState extends State<UslTrudaItem> {
               ),
             ],
 
+            // ── Вечерние и ночные часы ──────────────────────────
             buildSectionHeader(context, 'Вечерние и ночные часы'),
             buildTextField(
               context: context,
@@ -324,6 +379,72 @@ class _UslTrudaItemState extends State<UslTrudaItem> {
               keyboardType: TextInputType.number,
             ),
 
+            // ── Надбавки за вечернее и ночное время ─────────────
+            buildSectionHeader(context, 'Надбавки за вечернее и ночное время'),
+            _percentField(
+              _nadbavkaVechernye,
+              'Надбавка за вечернее время',
+              helperText:
+                  'Целые числа. 0 — надбавка не установлена. '
+                  'Пример: 20 означает +20% за вечерние часы.',
+            ),
+            _percentField(
+              _nadbavkaNochnye,
+              'Надбавка за ночное время',
+              helperText:
+                  'Минимум по ТК РФ — 20%. '
+                  'Целые числа. 0 — если сотрудник не работает ночью.',
+              defaultVal: 20,
+            ),
+
+            // ── Районный коэффициент ────────────────────────────
+            buildSectionHeader(context, 'Районный коэффициент'),
+            _percentField(
+              _rayonnyKoefficient,
+              'Районный коэффициент',
+              helperText:
+                  'Целые числа. 0 — не применяется. '
+                  'Пример: 15 означает +15% к зарплате.',
+            ),
+
+            // ── Северные надбавки ───────────────────────────────
+            buildSectionHeader(context, 'Северные надбавки'),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Применяются северные надбавки'),
+              subtitle: const Text(
+                'Процентные надбавки за работу в районах '
+                'Крайнего Севера и приравненных местностях',
+              ),
+              value: _estSevernyeNadbavki,
+              onChanged: (v) => setState(() {
+                _estSevernyeNadbavki = v;
+                if (!v) {
+                  _severnyKoefficient.text = '0';
+                  _severnaaNadbavka.text = '0';
+                }
+              }),
+            ),
+            if (_estSevernyeNadbavki) ...[
+              const SizedBox(height: 8),
+              _percentField(
+                _severnyKoefficient,
+                'Северный коэффициент',
+                helperText:
+                    'Районный коэффициент для КС и приравненных '
+                    'местностей. Пример: 50 означает ×1,5 к зарплате.',
+              ),
+              _percentField(
+                _severnaaNadbavka,
+                'Процентная надбавка (северная)',
+                helperText:
+                    'Надбавка за стаж работы в районах КС. '
+                    'Начисляется сверх районного коэффициента. '
+                    'Пример: 80 — максимум для КС.',
+              ),
+            ],
+
+            // ── Примечание ──────────────────────────────────────
             buildSectionHeader(context, 'Примечание'),
             buildTextField(
               context: context,
@@ -335,6 +456,12 @@ class _UslTrudaItemState extends State<UslTrudaItem> {
             const SizedBox(height: 32),
           ],
         ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: ItemActionBar(
+        isSaving: _isSaving,
+        onCancel: () => Navigator.pop(context),
+        onSave: _save,
       ),
     );
   }

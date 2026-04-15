@@ -28,7 +28,7 @@ class DatabaseHelper {
     );
   }
 
-  /// Включаем поддержку внешних ключей (FK) — обязательно для SQLite
+  /// Поддержка внешних ключей (FK)
   Future<void> _onConfigure(Database db) async {
     await db.execute('PRAGMA foreign_keys = ON');
   }
@@ -38,9 +38,7 @@ class DatabaseHelper {
     await _createIndexes(db);
   }
 
-  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // При необходимости: ALTER TABLE или пересоздание таблиц
-  }
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {}
 
   // ===========================================================================
   //  СОЗДАНИЕ ТАБЛИЦ
@@ -69,7 +67,8 @@ class DatabaseHelper {
         bankBIK             TEXT    NOT NULL DEFAULT '',
         bankName            TEXT    NOT NULL DEFAULT '',
         direktorFio         TEXT    NOT NULL DEFAULT '',
-        buhgalterFio        TEXT    NOT NULL DEFAULT ''
+        buhgalterFio        TEXT    NOT NULL DEFAULT '',
+        nalogoviyRezhim     INTEGER NOT NULL DEFAULT 0
       )
     ''');
 
@@ -96,8 +95,9 @@ class DatabaseHelper {
         id                INTEGER PRIMARY KEY AUTOINCREMENT,
         nazvanie          TEXT    NOT NULL DEFAULT '',
         kod               TEXT    NOT NULL DEFAULT '',
-        okladMin          REAL    NOT NULL DEFAULT 0.0,
-        okladMax          REAL    NOT NULL DEFAULT 0.0,
+        oklad             REAL    NOT NULL DEFAULT 0.0,
+        chasovayaStavka   REAL    NOT NULL DEFAULT 0.0,
+        isOklad           INTEGER NOT NULL DEFAULT 1,
         podrazdelenieId   INTEGER NOT NULL DEFAULT 0,
         FOREIGN KEY (podrazdelenieId) REFERENCES podrazdeleniya(id)
           ON DELETE SET DEFAULT ON UPDATE CASCADE
@@ -145,6 +145,10 @@ class DatabaseHelper {
       )
     ''');
 
+    // -----------------------------------------------------------------
+    // УСЛОВИЯ ТРУДА
+    // -----------------------------------------------------------------
+
     batch.execute('''
       CREATE TABLE IF NOT EXISTS uslTruda (
         id                    INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -159,15 +163,15 @@ class DatabaseHelper {
         normirovannoye        INTEGER NOT NULL DEFAULT 1,
         chasovVechernih       INTEGER NOT NULL DEFAULT 0,
         chasovNochnykh        INTEGER NOT NULL DEFAULT 0,
+        rayonnyKoefficient    INTEGER NOT NULL DEFAULT 0,
+        nadbavkaVechernye     INTEGER NOT NULL DEFAULT 0,
+        nadbavkaNochnye       INTEGER NOT NULL DEFAULT 20,
+        severnyKoefficient    INTEGER NOT NULL DEFAULT 0,
+        severnaaNadbavka      INTEGER NOT NULL DEFAULT 0,
+        estSevernyeNadbavki   INTEGER NOT NULL DEFAULT 0,
         primechanie           TEXT    NOT NULL DEFAULT ''
       )
     ''');
-
-    // Теперь, когда sotrudniki создана, можно добавить FK rukovoditelId в podrazdeleniya.
-    // В SQLite ALTER TABLE не поддерживает ADD CONSTRAINT, поэтому FK rukovoditelId
-    // реализуется логически через trigg или контролируется на уровне приложения.
-    // Это стандартное ограничение SQLite — FK на ту же или ещё не созданную таблицу
-    // добавляется через пересоздание или через проверки в коде.
 
     // -----------------------------------------------------------------
     // 5. НАЛОГОВЫЕ ВЫЧЕТЫ
@@ -197,11 +201,15 @@ class DatabaseHelper {
         periodMesyac      TEXT    NOT NULL DEFAULT '',
         rabochihDney      INTEGER NOT NULL DEFAULT 0,
         faktDney          INTEGER NOT NULL DEFAULT 0,
-        faktChasov        INTEGER NOT NULL DEFAULT 0,
+        faktChasov        REAL NOT NULL DEFAULT 0.0,
         otpuskDney        INTEGER NOT NULL DEFAULT 0,
         bolnichnyhDney    INTEGER NOT NULL DEFAULT 0,
         progulDney        INTEGER NOT NULL DEFAULT 0,
         komandirovkaDney  INTEGER NOT NULL DEFAULT 0,
+        vechernikhChasov      REAL    NOT NULL DEFAULT 0.0,
+        nochnykChasov         REAL    NOT NULL DEFAULT 0.0,
+        sverkhurochnykhChasov REAL    NOT NULL DEFAULT 0.0,
+        prazdnichikhChasov    REAL    NOT NULL DEFAULT 0.0,
         FOREIGN KEY (sotrudnikId) REFERENCES sotrudniki(id)
           ON DELETE CASCADE ON UPDATE CASCADE,
         UNIQUE (sotrudnikId, periodMesyac)
