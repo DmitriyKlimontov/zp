@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:zp/db/database.dart';
 import 'package:zp/pages/spravochniki/spravochniki_shared.dart';
-import 'package:zp/core/widgets/item_action_bar.dart';
+import 'package:zp/widgets/item_action_bar.dart';
 
 // ── Словарь налоговых режимов (ключ-значение) ─────────────────
 const Map<int, String> _nalogoviyRezhimLabels = {

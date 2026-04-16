@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:zp/db/database.dart';
 import 'package:zp/pages/spravochniki/spravochniki_shared.dart';
 import 'package:zp/pages/spravochniki/podrazdelenia/podrazdeleniaitemgetfromlist.dart';
-import 'package:zp/core/widgets/item_action_bar.dart';
+import 'package:zp/widgets/item_action_bar.dart';
 
 class DolznostiItem extends StatefulWidget {
   final Map<String, dynamic>? item;

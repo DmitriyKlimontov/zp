@@ -6,7 +6,7 @@ import 'package:zp/pages/spravochniki/spravochniki_shared.dart';
 import 'package:zp/pages/spravochniki/sotrudniki/sotrudnikiitemgetfromlist.dart';
 import 'package:zp/services/work_calendar.dart';
 import 'package:zp/pages/settings/work_calendar_page.dart';
-import 'package:zp/core/widgets/item_action_bar.dart';
+import 'package:zp/widgets/item_action_bar.dart';
 
 class TabelItem extends StatefulWidget {
   final Map<String, dynamic>? item;

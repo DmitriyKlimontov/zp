@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:zp/db/database.dart';
 import 'package:zp/pages/spravochniki/spravochniki_shared.dart';
 import 'package:zp/pages/spravochniki/organizacii/organizaciiitemgetfromlist.dart';
-import 'package:zp/core/widgets/item_action_bar.dart';
+import 'package:zp/widgets/item_action_bar.dart';
 
 class PodrazdeleniaItem extends StatefulWidget {
   final Map<String, dynamic>? item;

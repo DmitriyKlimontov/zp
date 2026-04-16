@@ -7,7 +7,7 @@ import 'package:zp/pages/spravochniki/spravochniki_shared.dart';
 import 'package:zp/pages/spravochniki/dolznosti/dolznostiitemgetfromlist.dart';
 import 'package:zp/pages/spravochniki/podrazdelenia/podrazdeleniaitemgetfromlist.dart';
 import 'package:zp/pages/spravochniki/uslTruda/uslTrudaitemgetfromlist.dart';
-import 'package:zp/core/widgets/item_action_bar.dart';
+import 'package:zp/widgets/item_action_bar.dart';
 import 'package:zp/pages/spravochniki/sotrudniki/td_generation_dogovor.dart';
 
 class SotrudnikiItem extends StatefulWidget {
