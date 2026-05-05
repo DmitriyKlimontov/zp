@@ -1,3 +1,29 @@
+// ==================== КОНСТАНТЫ ====================
+
+const Map<int, String> vidNachisleniyaLabels = {
+  1: 'Оклад',
+  2: 'Начисление по часовой ставке',
+  3: 'Премия плановая',
+  4: 'Премия разовая (поощрение)',
+  5: 'Надбавка / доплата',
+  6: 'Отпускные',
+  7: 'Больничные',
+  8: 'Материальная помощь',
+  9: 'Возмещение затрат',
+  10: 'Иное начисление',
+};
+
+const Map<int, String> vidUderzhaniyaLabels = {
+  1: 'НДФЛ',
+  2: 'Алименты (по соглашению)',
+  3: 'Алименты (по исполнительному листу)',
+  4: 'Удержание по исполнительному листу',
+  5: 'Возврат подотчётных сумм',
+  6: 'Удержание по заявлению сотрудника',
+  7: 'Иное удержание',
+};
+
+// ===================== ОБЪЕКТЫ ====================
 // ==================== СОТРУДНИКИ ====================
 class Sotrudniki {
   int? id;
@@ -1753,6 +1779,148 @@ class ZarplataGod {
     ndflIschisl: ndflIschisl ?? this.ndflIschisl,
     ndflUderzhanyy: ndflUderzhanyy ?? this.ndflUderzhanyy,
     ndflPerechislennyy: ndflPerechislennyy ?? this.ndflPerechislennyy,
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
+// Класс NachisleniyaStroka
+// ──────────────────────────────────────────────────────────────
+
+class NachisleniyaStroka {
+  int? id;
+  int raschetListokId;
+  int sotrudnikId;
+  String periodMesyac;
+  int vidNachisleniya;
+  String nazvanie;
+  double summa;
+  String osnovanie;
+
+  NachisleniyaStroka({
+    this.id,
+    this.raschetListokId = 0,
+    this.sotrudnikId = 0,
+    this.periodMesyac = '',
+    this.vidNachisleniya = 0,
+    this.nazvanie = '',
+    this.summa = 0.0,
+    this.osnovanie = '',
+  });
+
+  Map<String, dynamic> toMap() => {
+    'id': id ?? 0,
+    'raschetListokId': raschetListokId,
+    'sotrudnikId': sotrudnikId,
+    'periodMesyac': periodMesyac,
+    'vidNachisleniya': vidNachisleniya,
+    'nazvanie': nazvanie,
+    'summa': summa,
+    'osnovanie': osnovanie,
+  };
+
+  factory NachisleniyaStroka.fromMap(Map<String, dynamic> map) =>
+      NachisleniyaStroka(
+        id: map['id'],
+        raschetListokId: map['raschetListokId'] as int? ?? 0,
+        sotrudnikId: map['sotrudnikId'] as int? ?? 0,
+        periodMesyac: map['periodMesyac']?.toString() ?? '',
+        vidNachisleniya: map['vidNachisleniya'] as int? ?? 0,
+        nazvanie: map['nazvanie']?.toString() ?? '',
+        summa: (map['summa'] as num?)?.toDouble() ?? 0.0,
+        osnovanie: map['osnovanie']?.toString() ?? '',
+      );
+
+  factory NachisleniyaStroka.empty() => NachisleniyaStroka(id: 0);
+
+  NachisleniyaStroka copyWith({
+    int? id,
+    int? raschetListokId,
+    int? sotrudnikId,
+    String? periodMesyac,
+    int? vidNachisleniya,
+    String? nazvanie,
+    double? summa,
+    String? osnovanie,
+  }) => NachisleniyaStroka(
+    id: id ?? this.id,
+    raschetListokId: raschetListokId ?? this.raschetListokId,
+    sotrudnikId: sotrudnikId ?? this.sotrudnikId,
+    periodMesyac: periodMesyac ?? this.periodMesyac,
+    vidNachisleniya: vidNachisleniya ?? this.vidNachisleniya,
+    nazvanie: nazvanie ?? this.nazvanie,
+    summa: summa ?? this.summa,
+    osnovanie: osnovanie ?? this.osnovanie,
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
+// Класс UderzhaniyaStroka
+// ──────────────────────────────────────────────────────────────
+
+class UderzhaniyaStroka {
+  int? id;
+  int raschetListokId;
+  int sotrudnikId;
+  String periodMesyac;
+  int vidUderzhaniya;
+  String nazvanie;
+  double summa;
+  String osnovanie;
+
+  UderzhaniyaStroka({
+    this.id,
+    this.raschetListokId = 0,
+    this.sotrudnikId = 0,
+    this.periodMesyac = '',
+    this.vidUderzhaniya = 0,
+    this.nazvanie = '',
+    this.summa = 0.0,
+    this.osnovanie = '',
+  });
+
+  Map<String, dynamic> toMap() => {
+    'id': id ?? 0,
+    'raschetListokId': raschetListokId,
+    'sotrudnikId': sotrudnikId,
+    'periodMesyac': periodMesyac,
+    'vidUderzhaniya': vidUderzhaniya,
+    'nazvanie': nazvanie,
+    'summa': summa,
+    'osnovanie': osnovanie,
+  };
+
+  factory UderzhaniyaStroka.fromMap(Map<String, dynamic> map) =>
+      UderzhaniyaStroka(
+        id: map['id'],
+        raschetListokId: map['raschetListokId'] as int? ?? 0,
+        sotrudnikId: map['sotrudnikId'] as int? ?? 0,
+        periodMesyac: map['periodMesyac']?.toString() ?? '',
+        vidUderzhaniya: map['vidUderzhaniya'] as int? ?? 0,
+        nazvanie: map['nazvanie']?.toString() ?? '',
+        summa: (map['summa'] as num?)?.toDouble() ?? 0.0,
+        osnovanie: map['osnovanie']?.toString() ?? '',
+      );
+
+  factory UderzhaniyaStroka.empty() => UderzhaniyaStroka(id: 0);
+
+  UderzhaniyaStroka copyWith({
+    int? id,
+    int? raschetListokId,
+    int? sotrudnikId,
+    String? periodMesyac,
+    int? vidUderzhaniya,
+    String? nazvanie,
+    double? summa,
+    String? osnovanie,
+  }) => UderzhaniyaStroka(
+    id: id ?? this.id,
+    raschetListokId: raschetListokId ?? this.raschetListokId,
+    sotrudnikId: sotrudnikId ?? this.sotrudnikId,
+    periodMesyac: periodMesyac ?? this.periodMesyac,
+    vidUderzhaniya: vidUderzhaniya ?? this.vidUderzhaniya,
+    nazvanie: nazvanie ?? this.nazvanie,
+    summa: summa ?? this.summa,
+    osnovanie: osnovanie ?? this.osnovanie,
   );
 }
 

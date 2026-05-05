@@ -3,6 +3,8 @@ import 'package:zp/db/database.dart';
 import 'package:zp/services/generators/generator_models.dart';
 import 'td_data.dart';
 
+/// Репозиторий для сбора данных из базы данных
+
 class TdRepository {
   final DatabaseHelper _db;
   TdRepository([DatabaseHelper? db]) : _db = db ?? DatabaseHelper();

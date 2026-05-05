@@ -520,6 +520,85 @@ class DatabaseHelper {
       )
     ''');
 
+    // -----------------------------------------------------------------
+    // 17. СТРОКИ НАЧИСЛЕНИЙ (детализация расчётного листка)
+    // -----------------------------------------------------------------
+    batch.execute('''
+  CREATE TABLE IF NOT EXISTS nachisleniyaStroka (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    raschetListokId   INTEGER NOT NULL DEFAULT 0,
+    sotrudnikId       INTEGER NOT NULL DEFAULT 0,
+    periodMesyac      TEXT    NOT NULL DEFAULT '',
+ 
+    vidNachisleniya   INTEGER NOT NULL DEFAULT 0,
+    -- Справочник видов начислений:
+    --  1 = Оклад
+    --  2 = Начисление по часовой ставке
+    --  3 = Премия плановая
+    --  4 = Премия разовая (поощрение)
+    --  5 = Надбавка (доплата за особые условия)
+    --  6 = Отпускные
+    --  7 = Больничные (пособие по нетрудоспособности)
+    --  8 = Материальная помощь
+    --  9 = Возмещение затрат (переезд, расходы и т.д.)
+    -- 10 = Иное начисление
+ 
+    nazvanie          TEXT    NOT NULL DEFAULT '',
+    -- Произвольное наименование: «Премия за эффективность»,
+    -- «Матпомощь в связи со смертью родственника» и т.д.
+ 
+    summa             REAL    NOT NULL DEFAULT 0.0,
+    -- Сумма данного начисления в рублях
+ 
+    osnovanie         TEXT    NOT NULL DEFAULT '',
+    -- Основание: номер приказа, положение о премировании,
+    -- внутренний документ организации и т.д.
+ 
+    FOREIGN KEY (raschetListokId) REFERENCES raschetnyListok(id)
+      ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (sotrudnikId) REFERENCES sotrudniki(id)
+      ON DELETE CASCADE ON UPDATE CASCADE
+  )
+''');
+
+    // -----------------------------------------------------------------
+    // 18. СТРОКИ УДЕРЖАНИЙ (детализация расчётного листка)
+    // -----------------------------------------------------------------
+    batch.execute('''
+  CREATE TABLE IF NOT EXISTS uderzhaniyaStroka (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    raschetListokId   INTEGER NOT NULL DEFAULT 0,
+    sotrudnikId       INTEGER NOT NULL DEFAULT 0,
+    periodMesyac      TEXT    NOT NULL DEFAULT '',
+ 
+    vidUderzhaniya    INTEGER NOT NULL DEFAULT 0,
+    -- Справочник видов удержаний:
+    --  1 = НДФЛ
+    --  2 = Алименты (по соглашению)
+    --  3 = Алименты (по исполнительному листу)
+    --  4 = Удержание по исполнительному листу (иные)
+    --  5 = Возврат подотчётных сумм
+    --  6 = Удержание по заявлению сотрудника
+    --  7 = Иное удержание
+ 
+    nazvanie          TEXT    NOT NULL DEFAULT '',
+    -- Произвольное наименование: «ИЛ №123 от 01.01.2025»,
+    -- «Алименты на несовершеннолетних детей» и т.д.
+ 
+    summa             REAL    NOT NULL DEFAULT 0.0,
+    -- Сумма удержания в рублях
+ 
+    osnovanie         TEXT    NOT NULL DEFAULT '',
+    -- Основание: номер исполнительного листа, номер соглашения,
+    -- заявление сотрудника, приказ и т.д.
+ 
+    FOREIGN KEY (raschetListokId) REFERENCES raschetnyListok(id)
+      ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (sotrudnikId) REFERENCES sotrudniki(id)
+      ON DELETE CASCADE ON UPDATE CASCADE
+  )
+''');
+
     await batch.commit(noResult: true);
   }
 
